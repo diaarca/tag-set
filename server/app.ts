@@ -4,11 +4,13 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AppError } from './errors.js';
 import { LibraryStore } from './database.js';
-import { id } from './validation.js';
+import { id, object, text, videoId } from './validation.js';
+import { YouTubeMusicCatalog, type MusicCatalog } from './catalog.js';
 
 export function createApp(
   store: LibraryStore,
   clientRoot = resolve('dist/client'),
+  catalog: MusicCatalog = new YouTubeMusicCatalog(),
 ) {
   const app = Fastify({ logger: false, bodyLimit: 32_768 });
   app.addHook('onRequest', async (request, reply) => {
@@ -53,6 +55,30 @@ export function createApp(
       .send({ message: 'The library could not complete this operation.' });
   });
   app.get('/api/library', async () => store.library());
+  app.get<{ Querystring: { q?: string } }>(
+    '/api/catalog/search',
+    async (request) => catalog.search(text(request.query.q, 'Search query')),
+  );
+  app.post('/api/songs/import', async (request, reply) => {
+    const video = videoId(object(request.body).url);
+    const existing = store.findByVideoId(video);
+    if (existing) return reply.send(store.details(existing.id));
+    const track = await catalog.lookup(video);
+    if (track.videoId !== video)
+      throw new AppError(
+        502,
+        'YouTube Music returned a different song. Please try searching for the track.',
+      );
+    return reply.code(201).send(
+      store.details(
+        store.saveSong({
+          url: `https://music.youtube.com/watch?v=${video}`,
+          title: track.title,
+          artists: track.artists,
+        }),
+      ),
+    );
+  });
   app.get<{ Querystring: { tagId?: string } }>('/api/songs', async (request) =>
     store.songs(
       request.query.tagId === undefined ? undefined : id(request.query.tagId),

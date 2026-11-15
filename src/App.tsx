@@ -4,8 +4,9 @@ import { api } from './api';
 import { Player, type PlayerHandle } from './Player';
 import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
+import { ImportSongs } from './ImportSongs';
 
-type Editor = { kind: 'song' | 'tag'; id?: number };
+type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
 const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
 
 export function App() {
@@ -373,7 +374,7 @@ export function App() {
       {editor && (
         <Modal
           title={
-            editor.kind === 'song'
+            editor.kind === 'song' || editor.kind === 'manual'
               ? editor.id === undefined
                 ? 'Add a song'
                 : 'Song details'
@@ -383,7 +384,16 @@ export function App() {
           }
           onClose={() => setEditor(undefined)}
         >
-          {editor.kind === 'song' ? (
+          {editor.kind === 'song' && editor.id === undefined ? (
+            <ImportSongs
+              library={library}
+              onImported={(id) => {
+                refresh();
+                setEditor({ kind: 'song', id });
+              }}
+              onManual={() => setEditor({ kind: 'manual' })}
+            />
+          ) : editor.kind === 'song' || editor.kind === 'manual' ? (
             <SongEditor
               key={`song-${editor.id ?? 'new'}`}
               id={editor.id}

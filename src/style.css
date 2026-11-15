@@ -967,6 +967,48 @@ textarea {
   font-size: 12px;
   color: var(--green);
 }
+.import-modes {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.catalog-results {
+  padding: 0;
+  margin: 20px 0;
+  list-style: none;
+}
+.catalog-results li {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.catalog-results li > div {
+  min-width: 0;
+}
+.catalog-results strong {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.catalog-results li span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 6px;
+}
+.catalog-results button {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.import-footer {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin: 24px 0 0;
+}
 .sr-only {
   position: absolute;
   width: 1px;

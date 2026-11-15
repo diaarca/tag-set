@@ -33,3 +33,9 @@ export interface SongInput {
   title: string;
   artists: string[];
 }
+
+export interface CatalogSong {
+  videoId: string;
+  title: string;
+  artists: string[];
+}

@@ -77,6 +77,12 @@ export class LibraryStore {
     if (!row) throw new AppError(404, 'Song not found.');
     return { ...row, artists: JSON.parse(row.artists) as string[] };
   }
+  findByVideoId(videoId: string): Song | undefined {
+    const row = this.db
+      .prepare('SELECT id FROM songs WHERE video_id = ?')
+      .get(videoId) as { id: number } | undefined;
+    return row ? this.song(row.id) : undefined;
+  }
   songs(tagId?: number): Song[] {
     if (tagId !== undefined) this.requireTag(tagId);
     const rows = (

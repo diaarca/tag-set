@@ -6,3 +6,4 @@ data/
 .DS_Store
 coverage/
 result
+__pycache__/
