@@ -1,0 +1,34 @@
+name: SetwiseWrapper
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: 1
+    CODE_SIGN_STYLE: Automatic
+targets:
+  SetwiseWrapper-iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: '17.0'
+    sources:
+      - path: Wrapper
+      - path: ../wrapper/bundle
+        type: folder
+        buildPhase: resources
+      - path: ../wrapper/player-bridge.js
+        buildPhase: resources
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.dylan.Setwise.Wrapper
+        TARGETED_DEVICE_FAMILY: '1,2'
+    info:
+      path: Config/Wrapper-Info.plist
+      properties:
+        CFBundleDisplayName: Setwise Wrapper
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
