@@ -4,7 +4,15 @@ import hooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'data/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'data/**',
+      '**/.build/**',
+      'apple/Setwise.xcodeproj/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },

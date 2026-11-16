@@ -21,6 +21,14 @@ def main():
     if request["operation"] == "search":
         tracks = music.search(request["query"], filter="songs", limit=20)
         result = [metadata for track in tracks if (metadata := track_metadata(track))]
+    elif request["operation"] == "playlist":
+        playlist = music.get_playlist(request["playlistId"], limit=None)
+        tracks = playlist.get("tracks", [])
+        usable = [
+            metadata for track in tracks
+            if track.get("isAvailable", True) and (metadata := track_metadata(track))
+        ]
+        result = {"title": playlist["title"], "tracks": usable, "skipped": len(tracks) - len(usable)}
     else:
         video_id = request["videoId"]
         tracks = music.get_watch_playlist(videoId=video_id, limit=1).get("tracks", [])

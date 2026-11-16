@@ -1,12 +1,13 @@
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import type { CatalogSong } from '../shared/types.js';
+import type { CatalogSong, CatalogPlaylist } from '../shared/types.js';
 import { AppError } from './errors.js';
 import { artistNames, object, text } from './validation.js';
 
 export interface MusicCatalog {
   search(query: string): Promise<CatalogSong[]>;
   lookup(videoId: string): Promise<CatalogSong>;
+  playlist(playlistId: string): Promise<CatalogPlaylist>;
 }
 
 export function catalogSong(value: unknown): CatalogSong {
@@ -33,7 +34,13 @@ export class YouTubeMusicCatalog implements MusicCatalog {
       const child = execFile(
         process.env.SETWISE_PYTHON ?? 'python3',
         [fileURLToPath(new URL('./catalog.py', import.meta.url))],
-        { timeout: 30_000, maxBuffer: 1_048_576 },
+        {
+          timeout:
+            'operation' in request && request.operation === 'playlist'
+              ? 120_000
+              : 30_000,
+          maxBuffer: 16_777_216,
+        },
         (error, stdout, stderr) => {
           if (error) {
             const missing =
@@ -44,7 +51,7 @@ export class YouTubeMusicCatalog implements MusicCatalog {
                 503,
                 missing
                   ? 'Music catalog tools are missing. Start the app inside nix develop.'
-                  : 'YouTube Music could not return song information. Try again, or enter the details manually.',
+                  : 'YouTube Music could not return this information. Check the link is public, or try again later.',
               ),
             );
             return;
@@ -84,5 +91,25 @@ export class YouTubeMusicCatalog implements MusicCatalog {
   }
   async lookup(videoId: string) {
     return catalogSong(await this.run({ operation: 'lookup', videoId }));
+  }
+  async playlist(playlistId: string): Promise<CatalogPlaylist> {
+    const response = object(
+      await this.run({ operation: 'playlist', playlistId }),
+    );
+    if (
+      !Array.isArray(response.tracks) ||
+      !Number.isSafeInteger(response.skipped) ||
+      Number(response.skipped) < 0
+    )
+      throw new AppError(502, 'The catalog returned an invalid playlist.');
+    return {
+      title: text(response.title, 'Playlist title'),
+      tracks: [
+        ...new Map(
+          response.tracks.map(catalogSong).map((song) => [song.videoId, song]),
+        ).values(),
+      ],
+      skipped: Number(response.skipped),
+    };
   }
 }

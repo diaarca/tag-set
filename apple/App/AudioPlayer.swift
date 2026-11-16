@@ -30,6 +30,84 @@ enum AudioStreamPlayback {
 }
 
 @MainActor
+final class AudioStreamResolver {
+  private struct Entry {
+    let url: URL
+    let validUntil: Date
+  }
+  private var cache: [String: Entry] = [:]
+  private var pending: (id: String, token: UUID, task: Task<URL, Error>)?
+  private let now: () -> Date
+  private let extract: (String) async throws -> URL
+
+  init(now: @escaping () -> Date = Date.init, extract: ((String) async throws -> URL)? = nil) {
+    self.now = now
+    self.extract =
+      extract ?? { id in
+        let streams = try await YouTube(videoID: id, methods: [.local]).streams
+        guard
+          let stream = streams.filterAudioOnly().filter({
+            $0.fileExtension == .m4a && $0.isNativelyPlayable
+          }).highestAudioBitrateStream()
+        else {
+          throw LibraryError.invalid("No compatible audio stream is available for this song.")
+        }
+        try await stream.waitUntilAvailable()
+        try Task.checkCancellation()
+        return stream.url
+      }
+  }
+
+  func url(for id: String) async throws -> URL {
+    try Task.checkCancellation()
+    let date = now()
+    cache = cache.filter { $0.value.validUntil > date }
+    if let entry = cache[id] { return entry.url }
+    let request: (id: String, token: UUID, task: Task<URL, Error>)
+    if let pending, pending.id == id {
+      request = pending
+    } else {
+      cancel()
+      request = (id, UUID(), Task { try await extract(id) })
+      pending = request
+    }
+    do {
+      let url = try await request.task.value
+      if pending?.token == request.token {
+        let expiry = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+          .first(where: { $0.name == "expire" })?.value.flatMap(Double.init)
+        let validUntil = min(
+          now().addingTimeInterval(300),
+          expiry.flatMap { $0.isFinite ? Date(timeIntervalSince1970: $0 - 60) : nil }
+            ?? now().addingTimeInterval(300))
+        if cache.count >= 8,
+          let oldest = cache.min(by: { $0.value.validUntil < $1.value.validUntil })
+        {
+          cache.removeValue(forKey: oldest.key)
+        }
+        cache[id] = Entry(url: url, validUntil: validUntil)
+        pending = nil
+      }
+      try Task.checkCancellation()
+      return url
+    } catch {
+      if pending?.token == request.token { pending = nil }
+      throw error
+    }
+  }
+
+  func invalidate(_ id: String) {
+    cache.removeValue(forKey: id)
+    if pending?.id == id { cancel() }
+  }
+
+  func cancel() {
+    pending?.task.cancel()
+    pending = nil
+  }
+}
+
+@MainActor
 final class AudioPlayer: ObservableObject {
   enum RepeatMode: String, CaseIterable { case off, all, one }
   @Published private(set) var queue: [SetwiseCore.MusicTrack] = []
@@ -48,12 +126,16 @@ final class AudioPlayer: ObservableObject {
         queue.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
       }
       index = queue.firstIndex { $0.id == song.id } ?? 0
+      resetPrefetch()
     }
   }
-  @Published var repeatMode = RepeatMode.off
+  @Published var repeatMode = RepeatMode.off { didSet { resetPrefetch() } }
   @Published var volume: Float = 0.7 { didSet { player.volume = volume } }
   var current: SetwiseCore.MusicTrack? { queue.indices.contains(index) ? queue[index] : nil }
   private let player = AVPlayer()
+  private let resolver = AudioStreamResolver()
+  private var prefetchTask: Task<URL, Error>?
+  private var prefetchedID: String?
   private var task: Task<Void, Never>?
   private var generation = UUID()
   private var failed = Set<String>()
@@ -83,6 +165,7 @@ final class AudioPlayer: ObservableObject {
         guard let self else { return }
         self.position = time.seconds.isFinite ? time.seconds : 0
         self.duration = AudioStreamPlayback.duration(of: self.player.currentItem)
+        self.prepareNextIfNeeded()
         self.publishNowPlaying()
       }
     }
@@ -159,6 +242,7 @@ final class AudioPlayer: ObservableObject {
     resolveCurrent()
   }
   func remove(_ id: String) {
+    resetPrefetch()
     let old = current?.id
     let shouldPlay = playing || loading
     queue.removeAll { $0.id == id }
@@ -186,11 +270,16 @@ final class AudioPlayer: ObservableObject {
     }
   }
   func retry() {
-    if let id = current?.id { failed.remove(id) }
+    if let id = current?.id {
+      failed.remove(id)
+      resolver.invalidate(id)
+    }
     resolveCurrent()
   }
   func pause() {
     task?.cancel()
+    resetPrefetch()
+    resolver.cancel()
     endPreparation()
     if loading && player.currentItem == nil { generation = UUID() }
     loading = false
@@ -258,6 +347,7 @@ final class AudioPlayer: ObservableObject {
   }
   private func resolveCurrent() {
     task?.cancel()
+    resetPrefetch()
     endPreparation()
     player.pause()
     player.replaceCurrentItem(with: nil)
@@ -267,6 +357,7 @@ final class AudioPlayer: ObservableObject {
     error = nil
     generation = UUID()
     guard let song = current else {
+      resolver.cancel()
       loading = false
       MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
       return
@@ -276,24 +367,17 @@ final class AudioPlayer: ObservableObject {
     beginPreparation(for: request)
     task = Task { [self] in
       do {
-        let streams = try await YouTube(videoID: song.videoId, methods: [.local]).streams
-        guard
-          let stream = streams.filterAudioOnly().filter({
-            $0.fileExtension == .m4a && $0.isNativelyPlayable
-          }).highestAudioBitrateStream()
-        else {
-          throw LibraryError.invalid("No compatible audio stream is available for this song.")
-        }
-        try await stream.waitUntilAvailable()
+        let url = try await resolver.url(for: song.videoId)
         try Task.checkCancellation()
         guard request == generation else { return }
         try activateSession()
-        let item = AudioStreamPlayback.item(url: stream.url)
+        let item = AudioStreamPlayback.item(url: url)
         duration = AudioStreamPlayback.duration(of: item)
         statusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
           Task { @MainActor in
             guard let self, request == self.generation else { return }
             if item.status == .failed {
+              self.resolver.invalidate(song.videoId)
               self.loading = false
               self.failed.insert(song.id)
               self.error = "This song could not be played. Retry or skip it."
@@ -318,6 +402,29 @@ final class AudioPlayer: ObservableObject {
           endPreparation()
         }
       }
+    }
+  }
+  private func resetPrefetch() {
+    prefetchTask?.cancel()
+    prefetchTask = nil
+    prefetchedID = nil
+  }
+
+  private func prepareNextIfNeeded() {
+    guard playing, !loading, duration > 0, duration - position <= 30,
+      repeatMode != .one, !queue.isEmpty
+    else { return }
+    for step in 1...queue.count {
+      let candidate = index + step
+      if candidate >= queue.count && repeatMode != .all { return }
+      let song = queue[candidate % queue.count]
+      guard !failed.contains(song.id) else { continue }
+      guard prefetchedID != song.videoId else { return }
+      resetPrefetch()
+      prefetchedID = song.videoId
+      // Prepare only the URL. Foreground playback retries a failed speculative extraction.
+      prefetchTask = Task { try await resolver.url(for: song.videoId) }
+      return
     }
   }
   private func beginPreparation(for request: UUID) {

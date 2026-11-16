@@ -39,3 +39,14 @@ export interface CatalogSong {
   title: string;
   artists: string[];
 }
+export interface CatalogPlaylist {
+  title: string;
+  tracks: CatalogSong[];
+  skipped: number;
+}
+export interface PlaylistImportResult {
+  tagId: number;
+  imported: number;
+  existing: number;
+  skipped: number;
+}

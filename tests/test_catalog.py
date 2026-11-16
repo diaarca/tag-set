@@ -14,11 +14,12 @@ TRACK = {
 
 
 class CatalogBridgeTests(unittest.TestCase):
-    def run_bridge(self, request, *, search=None, tracks=None):
+    def run_bridge(self, request, *, search=None, tracks=None, playlist=None):
         output = io.StringIO()
         with patch("server.catalog.YTMusic") as factory:
             factory.return_value.search.return_value = search or []
             factory.return_value.get_watch_playlist.return_value = {"tracks": tracks or []}
+            factory.return_value.get_playlist.return_value = playlist
             with patch("sys.stdin", io.StringIO(json.dumps(request))), patch("sys.stdout", output):
                 main()
             return json.loads(output.getvalue()), factory.return_value
@@ -44,6 +45,16 @@ class CatalogBridgeTests(unittest.TestCase):
     def test_missing_artist_credits_are_not_replaced_with_channel_names(self):
         result, _ = self.run_bridge({"operation": "search", "query": "unknown"}, search=[{**TRACK, "artists": [], "author": "Uploader"}])
         self.assertEqual(result, [])
+
+    def test_playlist_fetches_all_pages_and_reports_unavailable_entries(self):
+        result, client = self.run_bridge(
+            {"operation": "playlist", "playlistId": "PLabcdefghijk"},
+            playlist={"title": "Playlist", "tracks": [TRACK, {**TRACK, "isAvailable": False}, {**TRACK, "artists": []}]},
+        )
+        self.assertEqual(result["title"], "Playlist")
+        self.assertEqual(len(result["tracks"]), 1)
+        self.assertEqual(result["skipped"], 2)
+        client.get_playlist.assert_called_once_with("PLabcdefghijk", limit=None)
 
 
 if __name__ == "__main__":

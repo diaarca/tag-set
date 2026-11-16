@@ -10,7 +10,7 @@
         let pkgs = import nixpkgs { inherit system; };
         in {
           default = pkgs.mkShell {
-            packages = [ pkgs.nodejs_24 (pkgs.python3.withPackages (ps: [ ps.ytmusicapi ])) ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.gnumake pkgs.gcc ];
+            packages = [ pkgs.nodejs_24 (pkgs.python3.withPackages (ps: [ ps.ytmusicapi ])) ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.gnumake pkgs.gcc ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen pkgs.swift pkgs.swiftPackages.swiftpm ];
           };
         });
     };

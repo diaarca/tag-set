@@ -65,3 +65,34 @@ export function artistNames(value: unknown): string[] {
   const names = value.map((name) => text(name, 'Artist name'));
   return [...new Map(names.map((name) => [name.toLowerCase(), name])).values()];
 }
+
+export function playlistId(value: unknown): string {
+  let url: URL;
+  try {
+    url = new URL(text(value, 'Playlist URL', 2048));
+  } catch {
+    throw new AppError(400, 'Enter a complete YouTube Music playlist URL.');
+  }
+  const playlist = url.searchParams.get('list');
+  if (
+    !['https:', 'http:'].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.port ||
+    ![
+      'youtube.com',
+      'www.youtube.com',
+      'music.youtube.com',
+      'm.youtube.com',
+    ].includes(url.hostname) ||
+    !['/playlist', '/watch'].includes(url.pathname) ||
+    !playlist ||
+    !/^[\w-]{10,200}$/.test(playlist)
+  ) {
+    throw new AppError(
+      400,
+      'That URL does not identify a YouTube Music playlist.',
+    );
+  }
+  return playlist;
+}

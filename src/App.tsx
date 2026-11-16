@@ -19,6 +19,7 @@ export function App() {
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const player = useRef<PlayerHandle>(null);
   const tag = library.tags.find((item) => item.id === selected);
   const refresh = () => setRevision((value) => value + 1);
@@ -165,10 +166,25 @@ export function App() {
       </aside>
 
       <main className="main-panel">
+        {notice && (
+          <div className="notice" role="status">
+            {notice}{' '}
+            <button className="text-button" onClick={() => setNotice('')}>
+              Dismiss
+            </button>
+          </div>
+        )}
         <header className="topbar">
           <div className="breadcrumb">
             Library <span>/</span> <strong>{tag?.name ?? 'All songs'}</strong>
           </div>
+          <a
+            className="text-button"
+            href="/api/library/export"
+            download="setwise-library.json"
+          >
+            Export library
+          </a>
           <button
             className="primary add-song"
             onClick={() => setEditor({ kind: 'song' })}
@@ -392,6 +408,14 @@ export function App() {
                 setEditor({ kind: 'song', id });
               }}
               onManual={() => setEditor({ kind: 'manual' })}
+              onPlaylistImported={(result) => {
+                refresh();
+                chooseTag(result.tagId);
+                setEditor(undefined);
+                setNotice(
+                  `Playlist imported: ${result.imported} new songs, ${result.existing} existing songs, ${result.skipped} unavailable entries skipped.`,
+                );
+              }}
             />
           ) : editor.kind === 'song' || editor.kind === 'manual' ? (
             <SongEditor

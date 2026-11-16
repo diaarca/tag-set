@@ -6,6 +6,8 @@ import type {
   SongMembership,
   Tag,
   TagEdge,
+  CatalogPlaylist,
+  PlaylistImportResult,
 } from '../shared/types.js';
 import { AppError } from './errors.js';
 import { artistNames, object, text, videoId } from './validation.js';
@@ -83,6 +85,32 @@ export class LibraryStore {
       .get(videoId) as { id: number } | undefined;
     return row ? this.song(row.id) : undefined;
   }
+  importPlaylist(
+    playlist: CatalogPlaylist,
+    tagName?: string,
+  ): PlaylistImportResult {
+    if (!playlist.tracks.length)
+      throw new AppError(422, 'This playlist has no importable songs.');
+    return this.db.transaction(() => {
+      const tagId = this.ensureTag(text(tagName ?? playlist.title, 'Tag name'));
+      let imported = 0;
+      let existing = 0;
+      for (const track of playlist.tracks) {
+        const previous = this.findByVideoId(track.videoId);
+        const songId =
+          previous?.id ??
+          this.saveSong({
+            url: `https://music.youtube.com/watch?v=${track.videoId}`,
+            title: track.title,
+            artists: track.artists,
+          });
+        this.assign(songId, tagId, true);
+        if (previous) existing++;
+        else imported++;
+      }
+      return { tagId, imported, existing, skipped: playlist.skipped };
+    })();
+  }
   songs(tagId?: number): Song[] {
     if (tagId !== undefined) this.requireTag(tagId);
     const rows = (
@@ -126,6 +154,17 @@ export class LibraryStore {
           'SELECT parent_id AS parentId, child_id AS childId FROM tag_edges ORDER BY parent_id, child_id',
         )
         .all() as TagEdge[],
+    };
+  }
+  exportLibrary() {
+    return {
+      version: 1,
+      ...this.library(),
+      assignments: this.db
+        .prepare(
+          'SELECT song_id AS songId, tag_id AS tagId, origin FROM song_tags ORDER BY song_id, tag_id, origin',
+        )
+        .all(),
     };
   }
   details(id: number): SongDetails {

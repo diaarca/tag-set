@@ -16,6 +16,7 @@ test('catalog search and link import preserve titles, full artist lists and auto
   const queries: string[] = [];
   const lookups: string[] = [];
   const catalog: MusicCatalog = {
+    playlist: async () => ({ title: 'Playlist', tracks: [track], skipped: 0 }),
     search: async (query) => {
       queries.push(query);
       return [track];
@@ -87,6 +88,9 @@ test('catalog failures and mismatched songs never create library entries', async
   const store = new LibraryStore(':memory:');
   let mismatch = false;
   const catalog: MusicCatalog = {
+    playlist: async () => {
+      throw new AppError(503, 'Catalog unavailable');
+    },
     search: async () => {
       throw new AppError(503, 'Catalog unavailable');
     },

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AppError } from './errors.js';
 import { LibraryStore } from './database.js';
-import { id, object, text, videoId } from './validation.js';
+import { id, object, text, videoId, playlistId } from './validation.js';
 import { YouTubeMusicCatalog, type MusicCatalog } from './catalog.js';
 
 export function createApp(
@@ -55,6 +55,14 @@ export function createApp(
       .send({ message: 'The library could not complete this operation.' });
   });
   app.get('/api/library', async () => store.library());
+  app.get('/api/library/export', async (_request, reply) =>
+    reply
+      .header(
+        'Content-Disposition',
+        'attachment; filename="setwise-library.json"',
+      )
+      .send(store.exportLibrary()),
+  );
   app.get<{ Querystring: { q?: string } }>(
     '/api/catalog/search',
     async (request) => catalog.search(text(request.query.q, 'Search query')),
@@ -78,6 +86,13 @@ export function createApp(
         }),
       ),
     );
+  });
+  app.post('/api/playlists/import', async (request) => {
+    const input = object(request.body);
+    const playlist = playlistId(input.url);
+    const name =
+      input.tagName === undefined ? undefined : text(input.tagName, 'Tag name');
+    return store.importPlaylist(await catalog.playlist(playlist), name);
   });
   app.get<{ Querystring: { tagId?: string } }>('/api/songs', async (request) =>
     store.songs(

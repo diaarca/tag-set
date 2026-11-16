@@ -7,3 +7,8 @@ data/
 coverage/
 result
 __pycache__/
+.build/
+DerivedData/
+xcuserdata/
+apple/Setwise.xcodeproj/
+apple/Config/Signing.local.xcconfig

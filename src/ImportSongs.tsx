@@ -1,17 +1,25 @@
 import { useState, type FormEvent } from 'react';
-import type { CatalogSong, Library, SongDetails } from '../shared/types.js';
+import type {
+  CatalogSong,
+  Library,
+  SongDetails,
+  PlaylistImportResult,
+} from '../shared/types.js';
 import { api, ApiError } from './api';
 
 export function ImportSongs({
   library,
   onImported,
   onManual,
+  onPlaylistImported,
 }: {
   library: Library;
   onImported(id: number): void;
   onManual(): void;
+  onPlaylistImported(result: PlaylistImportResult): void;
 }) {
-  const [mode, setMode] = useState<'search' | 'link'>('search');
+  const [mode, setMode] = useState<'search' | 'link' | 'playlist'>('search');
+  const [tagName, setTagName] = useState('');
   const [query, setQuery] = useState('');
   const [url, setUrl] = useState('');
   const [results, setResults] = useState<CatalogSong[]>([]);
@@ -60,8 +68,8 @@ export function ImportSongs({
   return (
     <>
       <p className="form-intro">
-        Find a song on YouTube Music or paste a link. Titles, artists, and their
-        tags come along automatically.
+        Search YouTube Music, paste a song link, or import a playlist as a tag.
+        Titles, artists, and their tags come along automatically.
       </p>
       <div className="import-modes" role="group" aria-label="How to add music">
         <button
@@ -85,6 +93,17 @@ export function ImportSongs({
           }}
         >
           Paste a link
+        </button>
+        <button
+          aria-pressed={mode === 'playlist'}
+          disabled={busy}
+          className={mode === 'playlist' ? 'primary' : ''}
+          onClick={() => {
+            setMode('playlist');
+            setError('');
+          }}
+        >
+          Import playlist
         </button>
       </div>
       {mode === 'search' ? (
@@ -143,6 +162,51 @@ export function ImportSongs({
             })}
           </ul>
         </>
+      ) : mode === 'playlist' ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run(async () => {
+              const result = await api<PlaylistImportResult>(
+                '/playlists/import',
+                'POST',
+                { url, ...(tagName.trim() ? { tagName: tagName.trim() } : {}) },
+              );
+              onPlaylistImported(result);
+            });
+          }}
+        >
+          <fieldset disabled={busy}>
+            <label>
+              Public YouTube Music playlist URL
+              <input
+                required
+                type="url"
+                maxLength={2048}
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://music.youtube.com/playlist?list=…"
+              />
+            </label>
+            <label>
+              Tag name <span className="field-hint">optional</span>
+              <input
+                maxLength={200}
+                value={tagName}
+                onChange={(event) => setTagName(event.target.value)}
+                placeholder="Use the playlist title"
+              />
+            </label>
+            <p className="field-note">
+              Songs are added to this tag. Existing songs and tags are reused;
+              your edits are preserved. Unavailable tracks are skipped.
+              Reimporting adds songs without removing existing assignments.
+            </p>
+            <button className="primary">
+              {busy ? 'Importing playlist…' : 'Import as tag'}
+            </button>
+          </fieldset>
+        </form>
       ) : (
         <form
           onSubmit={(event) => {
