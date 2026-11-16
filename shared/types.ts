@@ -28,12 +28,6 @@ export interface SongMembership {
 export interface SongDetails extends Song {
   memberships: SongMembership[];
 }
-export interface SongInput {
-  url: string;
-  title: string;
-  artists: string[];
-}
-
 export interface CatalogSong {
   videoId: string;
   title: string;

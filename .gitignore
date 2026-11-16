@@ -6,11 +6,9 @@ data/
 .DS_Store
 coverage/
 result
-__pycache__/
 .build/
 DerivedData/
 xcuserdata/
-apple/Setwise.xcodeproj/
 apple/SetwiseWrapper.xcodeproj/
 apple/Config/Signing.local.xcconfig
 wrapper/bundle/

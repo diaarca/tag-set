@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Library, Song } from '../shared/types.js';
-import { api } from './api';
+import type { Library, Song } from '../../shared/types.js';
+import { api, exportLibrary } from './api';
 import { Player, type PlayerHandle } from './Player';
 import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
@@ -9,15 +9,7 @@ import { ImportSongs } from './ImportSongs';
 type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
 const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
 
-export function App({
-  PlayerComponent = Player,
-  localLibrary = false,
-  onExport,
-}: {
-  PlayerComponent?: typeof Player;
-  localLibrary?: boolean;
-  onExport?: () => Promise<void>;
-} = {}) {
+export function App() {
   const [library, setLibrary] = useState<Library>(emptyLibrary);
   const [songs, setSongs] = useState<Song[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -131,20 +123,16 @@ export function App({
       ));
 
   return (
-    <div className={`app-shell${localLibrary ? ' wrapper-app' : ''}`}>
+    <div className="app-shell">
       <aside className="sidebar" aria-label="Library navigation">
         <a
           className="brand"
           href="/"
           aria-label="Setwise home"
-          onClick={
-            localLibrary
-              ? (event) => {
-                  event.preventDefault();
-                  chooseTag(null);
-                }
-              : undefined
-          }
+          onClick={(event) => {
+            event.preventDefault();
+            chooseTag(null);
+          }}
         >
           <span className="brand-mark">
             <i />
@@ -207,9 +195,7 @@ export function App({
           <span className="live-dot" />
           <div>
             Local by design
-            <small>
-              Your library. Your {localLibrary ? 'device' : 'computer'}.
-            </small>
+            <small>Your library. Your device.</small>
           </div>
         </div>
       </aside>
@@ -227,54 +213,44 @@ export function App({
           <div className="breadcrumb">
             Library <span>/</span> <strong>{tag?.name ?? 'All songs'}</strong>
           </div>
-          {localLibrary ? (
-            <div className="library-transfer">
-              <input
-                ref={importFile}
-                type="file"
-                accept="application/json,.json"
-                hidden
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  if (file) void importLibrary(file);
-                }}
-              />
-              <button
-                className="text-button"
-                disabled={transferring}
-                onClick={() => importFile.current?.click()}
-              >
-                Import library
-              </button>
-              <button
-                className="text-button"
-                disabled={transferring}
-                onClick={() => {
-                  setTransferring(true);
-                  void onExport?.()
-                    .catch((error) =>
-                      setError(
-                        error instanceof Error
-                          ? error.message
-                          : 'Could not export the library.',
-                      ),
-                    )
-                    .finally(() => setTransferring(false));
-                }}
-              >
-                Export library
-              </button>
-            </div>
-          ) : (
-            <a
+          <div className="library-transfer">
+            <input
+              ref={importFile}
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (file) void importLibrary(file);
+              }}
+            />
+            <button
               className="text-button"
-              href="/api/library/export"
-              download="setwise-library.json"
+              disabled={transferring}
+              onClick={() => importFile.current?.click()}
+            >
+              Import library
+            </button>
+            <button
+              className="text-button"
+              disabled={transferring}
+              onClick={() => {
+                setTransferring(true);
+                void exportLibrary()
+                  .catch((error) =>
+                    setError(
+                      error instanceof Error
+                        ? error.message
+                        : 'Could not export the library.',
+                    ),
+                  )
+                  .finally(() => setTransferring(false));
+              }}
             >
               Export library
-            </a>
-          )}
+            </button>
+          </div>
           <button
             className="primary add-song"
             onClick={() => setEditor({ kind: 'song' })}
@@ -483,7 +459,7 @@ export function App({
         </footer>
       </main>
 
-      <PlayerComponent ref={player} />
+      <Player ref={player} />
       {editor && (
         <Modal
           title={

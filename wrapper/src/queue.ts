@@ -1,4 +1,4 @@
-import type { Song } from '../shared/types.js';
+import type { Song } from '../../shared/types.js';
 
 export type Repeat = 'off' | 'all' | 'one';
 export interface QueueState {

@@ -11,7 +11,6 @@ export default tseslint.config(
       'node_modules/**',
       'data/**',
       '**/.build/**',
-      'apple/Setwise.xcodeproj/**',
       'apple/SetwiseWrapper.xcodeproj/**',
     ],
   },
@@ -23,7 +22,7 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'wrapper/src/**/*.{ts,tsx}'],
+    files: ['wrapper/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': hooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',

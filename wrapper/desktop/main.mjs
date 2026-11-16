@@ -2,7 +2,7 @@ import { app, BrowserWindow, WebContentsView, ipcMain, dialog } from 'electron';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import '../ui/protocol.js';
+import '../protocol.js';
 import { atomicWrite, createLibraryStorage, libraryText } from './storage.mjs';
 import { catalogRequest } from './catalog.mjs';
 import { createTrackNavigation } from './navigation.mjs';
@@ -59,7 +59,7 @@ function configureNavigation(contents) {
   contents.on('will-redirect', guard);
   contents.setWindowOpenHandler(({ url }) => {
     if (!allowedNavigation(url)) {
-      report({ error: 'This popup cannot be opened inside the test player.' });
+      report({ error: 'This popup cannot be opened inside Setwise.' });
       return { action: 'deny' };
     }
     // Preserve the popup's opener and session so sign-in can complete normally.

@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Song } from '../shared/types.js';
-import { emptyQueue, queueReducer } from '../src/queue.js';
-import { synchronizePlayer, type YouTubePlayer } from '../src/youtube.js';
+import { emptyQueue, queueReducer } from '../wrapper/src/queue.js';
 
 const songs: Song[] = [1, 2, 3].map((id) => ({
   id,
@@ -104,27 +103,4 @@ test('shuffle preserves every song and keeps the current song selected', () => {
   );
   state = queueReducer(state, { type: 'shuffle' });
   assert.equal(state.songs[state.index].id, 2);
-});
-
-test('player adapter loads only for track changes, synchronizes transport, and stops empty queues', () => {
-  const commands: string[] = [];
-  const player = {
-    loadVideoById: (id: string) => commands.push(`load:${id}`),
-    cueVideoById: (id: string) => commands.push(`cue:${id}`),
-    playVideo: () => commands.push('play'),
-    pauseVideo: () => commands.push('pause'),
-    stopVideo: () => commands.push('stop'),
-  } as unknown as YouTubePlayer;
-  synchronizePlayer(player, songs[0].videoId, true, true);
-  synchronizePlayer(player, songs[0].videoId, false, false);
-  synchronizePlayer(player, songs[0].videoId, true, false);
-  synchronizePlayer(player, songs[1].videoId, false, true);
-  synchronizePlayer(player, undefined, false, true);
-  assert.deepEqual(commands, [
-    `load:${songs[0].videoId}`,
-    'pause',
-    'play',
-    `cue:${songs[1].videoId}`,
-    'stop',
-  ]);
 });

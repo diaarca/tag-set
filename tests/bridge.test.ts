@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { createTrackNavigation } from '../wrapper/desktop/navigation.mjs';
-import '../wrapper/ui/protocol.js';
-const { allowedNavigation, validateCommand, videoId, artworkURL } =
+import '../wrapper/protocol.js';
+import { videoId } from '../shared/validation.js';
+const { allowedNavigation, validateCommand, artworkURL } =
   globalThis.setwiseProtocol;
 
 test('track loads ignore superseded failures and report the latest failure', async () => {

@@ -26,12 +26,7 @@ export async function buildInterface() {
   } catch {
     throw new Error('Install dependencies first: nix develop --command npm ci');
   }
-  run(process.execPath, [
-    'node_modules/vite/bin/vite.js',
-    'build',
-    '--config',
-    'wrapper/vite.config.ts',
-  ]);
+  run(process.execPath, ['node_modules/vite/bin/vite.js', 'build']);
   return manifest;
 }
 
@@ -56,7 +51,6 @@ export async function copyApplication(destination, version) {
     recursive: true,
     filter: (path) => !path.endsWith('.d.mts'),
   });
-  await mkdir(join(destination, 'ui'));
-  await cp('wrapper/ui/protocol.js', join(destination, 'ui/protocol.js'));
+  await cp('wrapper/protocol.js', join(destination, 'protocol.js'));
   await cp('wrapper/player-bridge.js', join(destination, 'player-bridge.js'));
 }

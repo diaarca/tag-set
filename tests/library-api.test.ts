@@ -1,12 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { LibraryStore } from '../server/database.js';
-import { PortableLibrary } from '../wrapper/src/library.js';
-import { LocalLibraryApi, type LibraryHost } from '../wrapper/src/api.js';
-import { PortableCatalog } from '../wrapper/src/catalog.js';
+import { LibraryStore } from '../wrapper/src/library.js';
+import { LibraryApi, type LibraryHost } from '../wrapper/src/library-api.js';
+import { MusicCatalog } from '../wrapper/src/catalog.js';
 import { createLibraryStorage } from '../wrapper/desktop/storage.mjs';
 
 const song = (index: number, artists = ['Daft Punk']) => ({
@@ -14,90 +12,6 @@ const song = (index: number, artists = ['Daft Punk']) => ({
   title: `Song ${index}`,
   artists,
 });
-function canonical(value: unknown) {
-  const data = new PortableLibrary(value).snapshot();
-  data.tags.sort((a, b) => a.id - b.id);
-  data.songs.sort((a, b) => a.id - b.id);
-  data.edges.sort((a, b) => a.parentId - b.parentId || a.childId - b.childId);
-  data.assignments.sort(
-    (a, b) =>
-      a.songId - b.songId ||
-      a.tagId - b.tagId ||
-      a.origin.localeCompare(b.origin),
-  );
-  return data;
-}
-test('portable library matches the SQLite library through graph, artist, rename and deletion edits', (t) => {
-  const sql = new LibraryStore(':memory:'),
-    portable = new PortableLibrary();
-  t.after(() => sql.close());
-  const both = <T>(action: (store: LibraryStore | PortableLibrary) => T): T => {
-    const expected = action(sql),
-      actual = action(portable);
-    assert.deepEqual(actual, expected);
-    assert.deepEqual(
-      canonical(portable.exportLibrary()),
-      canonical(sql.exportLibrary()),
-    );
-    for (const track of sql.songs()) {
-      const details = (store: LibraryStore | PortableLibrary) =>
-        store
-          .details(track.id)
-          .memberships.map((row) => ({
-            ...row,
-            inheritedVia: row.inheritedVia.sort((a, b) => a - b),
-          }))
-          .sort((a, b) => a.tagId - b.tagId);
-      assert.deepEqual(details(portable), details(sql));
-    }
-    return actual;
-  };
-  const first = both((store) => store.saveSong(song(1)));
-  const second = both((store) => store.saveSong(song(2, ['Guest'])));
-  const artist = portable.tags().find((tag) => tag.name === 'Daft Punk')!.id;
-  const root = both((store) => store.createTag({ name: 'atmosphere' }));
-  const left = both((store) => store.createTag({ name: 'electronic' }));
-  const right = both((store) => store.createTag({ name: 'french' }));
-  both((store) => store.relate(root, left, true));
-  both((store) => store.relate(root, right, true));
-  both((store) => store.relate(left, artist, true));
-  both((store) => store.relate(right, artist, true));
-  both((store) => store.assign(first, root, true));
-  both((store) => store.assign(second, root, true));
-  assert.equal(portable.tags().find((tag) => tag.id === root)!.songCount, 2);
-  both((store) => store.assign(first, root, false));
-  both((store) => store.relate(root, left, false));
-  assert.deepEqual(
-    portable.songs(root).map((song) => song.id),
-    [first, second],
-  );
-  both((store) =>
-    assert.throws(() => store.relate(artist, root, true), /cycle/),
-  );
-  both((store) => assert.throws(() => store.relate(root, root, true), /cycle/));
-  both((store) => store.updateTag(root, { name: 'mood', pinned: true }));
-  assert.equal(portable.tags()[0].id, root);
-  both((store) => store.assign(first, artist, true));
-  both((store) => store.saveSong(song(1, ['Guest']), first));
-  both((store) => store.deleteTag(artist));
-  both((store) =>
-    store.saveSong({ ...song(1, ['Guest']), title: 'Edited' }, first),
-  );
-  const guest = portable.tags().find((tag) => tag.name === 'Guest')!.id;
-  both((store) => store.deleteTag(guest));
-  both((store) =>
-    store.saveSong(
-      { ...song(1, ['Guest']), title: 'Changed title only' },
-      first,
-    ),
-  );
-  assert.ok(!portable.tags().some((tag) => tag.name === 'Guest'));
-  both((store) => store.deleteTag(root));
-  both((store) => store.deleteSong(second));
-  const restored = new PortableLibrary(portable.snapshot());
-  assert.equal(restored.saveSong(song(3)) > second, true);
-});
-
 function memoryHost(initial: string | null = null) {
   let value = initial,
     writes = 0,
@@ -126,26 +40,26 @@ function memoryHost(initial: string | null = null) {
     },
   };
 }
-const offlineCatalog = new PortableCatalog(async () => {
+const offlineCatalog = new MusicCatalog(async () => {
   throw new Error('Network unavailable');
 });
 
-test('portable API serializes writes, persists a restart, and keeps saved data on failed writes', async () => {
+test('library API serializes writes, persists a restart, and keeps saved data on failed writes', async () => {
   const disk = memoryHost(),
-    client = new LocalLibraryApi(disk.host, offlineCatalog);
+    client = new LibraryApi(disk.host, offlineCatalog);
   await Promise.all(
     ['one', 'two', 'three'].map((name) =>
       client.request('/tags', 'POST', { name }),
     ),
   );
-  const saved = new PortableLibrary(JSON.parse(disk.value!));
+  const saved = new LibraryStore(JSON.parse(disk.value!));
   assert.equal(saved.tags().length, 3);
-  const reloaded = new LocalLibraryApi(disk.host, offlineCatalog);
+  const reloaded = new LibraryApi(disk.host, offlineCatalog);
   assert.deepEqual(await reloaded.request('/library'), saved.library());
   disk.fail = true;
   await assert.rejects(client.request('/songs', 'POST', song(1)), /Disk full/);
   assert.equal(disk.writes, 3);
-  assert.equal(new PortableLibrary(JSON.parse(disk.value!)).songs().length, 0);
+  assert.equal(new LibraryStore(JSON.parse(disk.value!)).songs().length, 0);
   disk.fail = false;
   await assert.rejects(
     client.request('/tags', 'POST', { name: 'four' }),
@@ -154,30 +68,30 @@ test('portable API serializes writes, persists a restart, and keeps saved data o
   assert.equal(disk.writes, 3);
 });
 
-test('web-library import merges without overwriting edits and rejects combined cycles atomically', async () => {
-  const original = new PortableLibrary();
+test('library import merges without overwriting edits and rejects combined cycles atomically', async () => {
+  const original = new LibraryStore();
   const first = original.saveSong(song(1));
   const parent = original.createTag({ name: 'parent' });
   const child = original.createTag({ name: 'child' });
   original.relate(parent, child, true);
   original.assign(first, child, true);
   original.updateTag(parent, { pinned: true });
-  const incoming = new PortableLibrary(original.exportLibrary());
+  const incoming = new LibraryStore(original.exportLibrary());
   incoming.saveSong(
     { ...song(1), title: 'Remote title', artists: ['Another artist'] },
     first,
   );
   incoming.saveSong(song(2));
   const disk = memoryHost(JSON.stringify(original.snapshot()));
-  const client = new LocalLibraryApi(disk.host, offlineCatalog);
+  const client = new LibraryApi(disk.host, offlineCatalog);
   await client.request('/library/import', 'POST', incoming.exportLibrary());
-  const merged = new PortableLibrary(JSON.parse(disk.value!));
+  const merged = new LibraryStore(JSON.parse(disk.value!));
   assert.equal(merged.song(first).title, 'Song 1');
   assert.deepEqual(merged.song(first).artists, ['Daft Punk']);
   assert.equal(merged.songs(parent).length, 1);
   assert.equal(merged.tags().find((tag) => tag.id === parent)!.pinned, true);
   const before = disk.value;
-  const conflicting = new PortableLibrary();
+  const conflicting = new LibraryStore();
   const a = conflicting.createTag({ name: 'parent' }),
     b = conflicting.createTag({ name: 'child' });
   conflicting.relate(b, a, true);
@@ -191,7 +105,7 @@ test('web-library import merges without overwriting edits and rejects combined c
 test('unreadable or newer saved libraries are never replaced with an empty library', async () => {
   for (const raw of ['{broken', '{"version":2}', '{"version":1,"songs":[]}']) {
     const disk = memoryHost(raw),
-      client = new LocalLibraryApi(disk.host, offlineCatalog);
+      client = new LibraryApi(disk.host, offlineCatalog);
     await assert.rejects(client.request('/library'));
     await assert.rejects(client.request('/songs', 'POST', song(1)));
     assert.equal(disk.value, raw);
@@ -200,33 +114,39 @@ test('unreadable or newer saved libraries are never replaced with an empty libra
 });
 
 test('device JSON storage rejects stale writes and preserves the last complete library', async () => {
-  const folder = await mkdtemp(join(tmpdir(), 'setwise-wrapper-'));
+  await mkdir('.build', { recursive: true });
+  const folder = await mkdtemp(join('.build', 'storage-'));
   try {
     const path = join(folder, 'library.json'),
       storage = createLibraryStorage(path);
-    const first = JSON.stringify(new PortableLibrary().snapshot());
+    const first = JSON.stringify(new LibraryStore().snapshot());
     assert.equal(await storage.read(), null);
     await storage.write(first, null);
     await assert.rejects(storage.write('{broken', first));
     await assert.rejects(storage.write(first, null), /another window/);
     assert.equal(await readFile(path, 'utf8'), first);
-    const client = new LocalLibraryApi(storage, offlineCatalog);
+    const client = new LibraryApi(storage, offlineCatalog);
     await client.request('/songs', 'POST', song(1));
-    const reloaded = new LocalLibraryApi(
-      createLibraryStorage(path),
-      offlineCatalog,
-    );
+    const parent = (await client.request('/tags', 'POST', {
+      name: 'Pinned',
+    })) as { id: number };
+    await client.request(`/tags/${parent.id}`, 'PATCH', { pinned: true });
+    await client.request(`/tags/${parent.id}/children/1`, 'PUT');
+    const reloaded = new LibraryApi(createLibraryStorage(path), offlineCatalog);
     const snapshot = await reloaded.request('/library');
     assert.deepEqual(
       snapshot,
-      new PortableLibrary(JSON.parse((await storage.read())!)).library(),
+      new LibraryStore(JSON.parse((await storage.read())!)).library(),
     );
+    const restored = new LibraryStore(JSON.parse((await storage.read())!));
+    assert.equal(restored.tags()[0].pinned, true);
+    assert.equal(restored.songs(parent.id).length, 1);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
 });
 
-test('portable catalog reads complete playlist continuations without importing recommendation rows', async () => {
+test('library catalog reads complete playlist continuations without importing recommendation rows', async () => {
   const row = (videoId: string, credits = true) => ({
     musicResponsiveListItemRenderer: {
       playlistItemData: { videoId },
@@ -256,7 +176,7 @@ test('portable catalog reads complete playlist continuations without importing r
     },
   });
   let requests = 0;
-  const catalog = new PortableCatalog(async (_endpoint, body) => {
+  const catalog = new MusicCatalog(async (_endpoint, body) => {
     requests++;
     if (body.browseId)
       return {
@@ -296,11 +216,19 @@ test('portable catalog reads complete playlist continuations without importing r
   assert.equal(playlist.tracks.length, 2);
   assert.equal(playlist.skipped, 1);
   const disk = memoryHost(),
-    client = new LocalLibraryApi(disk.host, catalog);
-  await client.request('/playlists/import', 'POST', {
+    client = new LibraryApi(disk.host, catalog);
+  await client.request('/songs', 'POST', {
+    url: 'https://youtu.be/abcdefghijk',
+    title: 'Edited title',
+    artists: ['My artist'],
+  });
+  const result = await client.request('/playlists/import', 'POST', {
     url: 'https://music.youtube.com/playlist?list=PL123456789',
   });
-  const library = new PortableLibrary(JSON.parse(disk.value!));
+  assert.deepEqual(result, { tagId: 2, imported: 1, existing: 1, skipped: 1 });
+  const library = new LibraryStore(JSON.parse(disk.value!));
+  assert.equal(library.song(1).title, 'Edited title');
+  assert.deepEqual(library.song(1).artists, ['My artist']);
   assert.equal(
     library.tags().find((tag) => tag.name === 'Playlist')!.songCount,
     2,
@@ -308,5 +236,103 @@ test('portable catalog reads complete playlist continuations without importing r
   await client.request('/playlists/import', 'POST', {
     url: 'https://music.youtube.com/playlist?list=PL123456789',
   });
-  assert.equal(new PortableLibrary(JSON.parse(disk.value!)).songs().length, 2);
+  assert.equal(new LibraryStore(JSON.parse(disk.value!)).songs().length, 2);
+});
+
+test('catalog imports preserve artist credits and reject failures without saving', async () => {
+  const track = {
+    videoId: 'abcdefghijk',
+    title: 'A collaboration',
+    artists: ['First', 'Second'],
+  };
+  const credits = track.artists.map((text, index) => ({
+    text,
+    navigationEndpoint: { browseEndpoint: { browseId: `UC${index}` } },
+  }));
+  let mode = 'valid';
+  const lookups: string[] = [];
+  const disk = memoryHost();
+  const client = new LibraryApi(
+    disk.host,
+    new MusicCatalog(async (endpoint, body) => {
+      if (mode === 'offline') throw new Error('Network unavailable');
+      if (endpoint === 'search')
+        return {
+          musicResponsiveListItemRenderer: {
+            playlistItemData: { videoId: track.videoId },
+            flexColumns: [
+              {
+                musicResponsiveListItemFlexColumnRenderer: {
+                  text: { simpleText: track.title },
+                },
+              },
+              {
+                musicResponsiveListItemFlexColumnRenderer: {
+                  text: { runs: credits },
+                },
+              },
+            ],
+          },
+        };
+      lookups.push(String(body.videoId));
+      return {
+        playlistPanelVideoRenderer: {
+          videoId: mode === 'mismatch' ? 'lmnopqrstuv' : track.videoId,
+          title: { simpleText: track.title },
+          longBylineText: { runs: mode === 'no-credits' ? [] : credits },
+        },
+      };
+    }),
+  );
+  assert.deepEqual(await client.request('/catalog/search?q=collaboration'), [
+    track,
+  ]);
+  for (mode of ['offline', 'mismatch', 'no-credits']) {
+    await assert.rejects(
+      client.request('/songs/import', 'POST', {
+        url: `https://youtu.be/${track.videoId}`,
+      }),
+    );
+    assert.equal(disk.writes, 0);
+  }
+  mode = 'valid';
+  const imported = await client.request('/songs/import', 'POST', {
+    url: `https://youtu.be/${track.videoId}`,
+  });
+  const store = new LibraryStore(JSON.parse(disk.value!));
+  assert.deepEqual(store.song(1).artists, track.artists);
+  assert.deepEqual(
+    store.tags().map((tag) => tag.name),
+    track.artists,
+  );
+  assert.ok(store.details(1).memberships.every((member) => member.artist));
+  const count = lookups.length;
+  assert.deepEqual(
+    await client.request('/songs/import', 'POST', {
+      url: `https://youtu.be/${track.videoId}`,
+    }),
+    imported,
+  );
+  assert.equal(lookups.length, count);
+});
+
+test('an empty playlist never creates a tag or writes the library', async () => {
+  const disk = memoryHost();
+  const catalog = new MusicCatalog(async () => ({
+    musicResponsiveHeaderRenderer: { title: { simpleText: 'Empty' } },
+    musicPlaylistShelfRenderer: { contents: [] },
+  }));
+  const client = new LibraryApi(disk.host, catalog);
+  await assert.rejects(
+    client.request('/playlists/import', 'POST', {
+      url: 'https://music.youtube.com/playlist?list=PLabcdefghijk',
+    }),
+    /no importable songs/,
+  );
+  assert.equal(disk.writes, 0);
+  assert.deepEqual(await client.request('/library'), {
+    songs: [],
+    tags: [],
+    edges: [],
+  });
 });

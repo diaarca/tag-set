@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { Library, SongDetails, Tag } from '../shared/types.js';
-import { api, ApiError } from './api';
+import type { Library, SongDetails, Tag } from '../../shared/types.js';
+import { api } from './api';
+import { AppError } from '../../shared/errors.js';
 
 function useAction() {
   const [busy, setBusy] = useState(false);
@@ -137,7 +138,7 @@ export function SongEditor({
           setSaved(true);
         }
       } catch (error) {
-        if (error instanceof ApiError && error.songId) {
+        if (error instanceof AppError && error.songId) {
           onCreated(error.songId);
           return;
         }

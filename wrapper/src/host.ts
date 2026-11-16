@@ -1,4 +1,4 @@
-import type { WrapperCommand } from '../ui/protocol.js';
+import type { WrapperCommand } from '../protocol.js';
 
 export interface PlaybackMessage {
   type: 'playback';

@@ -4,8 +4,9 @@ import type {
   Library,
   SongDetails,
   PlaylistImportResult,
-} from '../shared/types.js';
-import { api, ApiError } from './api';
+} from '../../shared/types.js';
+import { api } from './api';
+import { AppError } from '../../shared/errors.js';
 
 export function ImportSongs({
   library,
@@ -33,7 +34,7 @@ export function ImportSongs({
     try {
       await action();
     } catch (error) {
-      if (error instanceof ApiError && error.songId) onImported(error.songId);
+      if (error instanceof AppError && error.songId) onImported(error.songId);
       else
         setError(
           error instanceof Error

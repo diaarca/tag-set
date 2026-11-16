@@ -1,33 +1,4 @@
 (() => {
-  const sampleVideoId = 'EsAQYAeqxD4';
-
-  function videoId(value) {
-    const url = new URL(value.trim());
-    if (
-      url.protocol !== 'https:' ||
-      url.username ||
-      url.password ||
-      url.port ||
-      ![
-        'music.youtube.com',
-        'youtube.com',
-        'www.youtube.com',
-        'm.youtube.com',
-        'youtu.be',
-      ].includes(url.hostname)
-    )
-      throw new Error('Enter an HTTPS YouTube Music or YouTube song link.');
-    const id =
-      url.hostname === 'youtu.be'
-        ? url.pathname.slice(1)
-        : url.pathname === '/watch'
-          ? url.searchParams.get('v')
-          : null;
-    if (!id || !/^[\w-]{11}$/.test(id))
-      throw new Error('The link must identify a single song.');
-    return id;
-  }
-
   function validateCommand(value) {
     if (!value || typeof value !== 'object')
       throw new Error('Invalid command.');
@@ -126,8 +97,6 @@
   }
 
   globalThis.setwiseProtocol = Object.freeze({
-    sampleVideoId,
-    videoId,
     validateCommand,
     allowedNavigation,
     artworkURL,

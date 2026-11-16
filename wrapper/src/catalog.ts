@@ -13,7 +13,7 @@ const record = (value: unknown): Record<string, unknown> =>
 const field = (value: unknown, key: string) => record(value)[key];
 const array = (value: unknown): unknown[] =>
   Array.isArray(value) ? value : [];
-export function nodes(key: string, value: unknown): Record<string, unknown>[] {
+function nodes(key: string, value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) return value.flatMap((child) => nodes(key, child));
   const object = record(value),
     found = object[key];
@@ -34,7 +34,7 @@ const label = (value: unknown) =>
 const browseID = (run: unknown) =>
   field(field(field(run, 'navigationEndpoint'), 'browseEndpoint'), 'browseId');
 
-export function catalogTracks(value: unknown, panel = false): CatalogSong[] {
+function catalogTracks(value: unknown, panel = false): CatalogSong[] {
   const tracks: CatalogSong[] = [];
   for (const row of nodes(
     panel ? 'playlistPanelVideoRenderer' : 'musicResponsiveListItemRenderer',
@@ -85,7 +85,7 @@ export function catalogTracks(value: unknown, panel = false): CatalogSong[] {
   return [...new Map(tracks.map((track) => [track.videoId, track])).values()];
 }
 
-export class PortableCatalog {
+export class MusicCatalog {
   constructor(private transport: Transport) {}
   async search(query: string) {
     return catalogTracks(

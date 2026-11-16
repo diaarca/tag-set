@@ -12,8 +12,6 @@ export type WrapperCommand =
     };
 declare global {
   var setwiseProtocol: {
-    sampleVideoId: string;
-    videoId(value: string): string;
     validateCommand(value: unknown): WrapperCommand;
     allowedNavigation(value: string): boolean;
     artworkURL(value: unknown): string | null;

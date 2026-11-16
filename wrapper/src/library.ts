@@ -61,7 +61,7 @@ function rows(
   return value;
 }
 
-export class PortableLibrary {
+export class LibraryStore {
   private data: LibraryData;
   constructor(value?: unknown) {
     if (value === undefined) {
@@ -437,7 +437,7 @@ export class PortableLibrary {
     return { tagId, imported, existing, skipped: playlist.skipped };
   }
   merge(value: unknown) {
-    const incoming = new PortableLibrary(value).snapshot();
+    const incoming = new LibraryStore(value).snapshot();
     const songs = new Map<number, number>(),
       tags = new Map<number, number>(),
       existing = new Set<number>();

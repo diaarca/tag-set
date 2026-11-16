@@ -1,9 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { LibraryStore } from '../server/database.js';
+import { LibraryStore } from '../wrapper/src/library.js';
 
 const songInput = (index: number, artists = ['Daft Punk']) => ({
   url: `https://music.youtube.com/watch?v=${String(index).padStart(11, '0')}`,
@@ -11,9 +8,8 @@ const songInput = (index: number, artists = ['Daft Punk']) => ({
   artists,
 });
 
-test('nested and diamond-shaped inheritance deduplicates songs and preserves other sources', (t) => {
-  const store = new LibraryStore(':memory:');
-  t.after(() => store.close());
+test('nested and diamond-shaped inheritance deduplicates songs and preserves other sources', () => {
+  const store = new LibraryStore();
   const first = store.saveSong(songInput(1));
   const second = store.saveSong(songInput(2, ['Other Artist']));
   const artist = store.tags().find((tag) => tag.name === 'Daft Punk')!.id;
@@ -55,9 +51,8 @@ test('nested and diamond-shaped inheritance deduplicates songs and preserves oth
   assert.equal(store.tags().find((tag) => tag.id === atmosphere)!.songCount, 0);
 });
 
-test('cycles are rejected atomically, including indirect and self links', (t) => {
-  const store = new LibraryStore(':memory:');
-  t.after(() => store.close());
+test('cycles are rejected atomically, including indirect and self links', () => {
+  const store = new LibraryStore();
   const a = store.createTag({ name: 'A' });
   const b = store.createTag({ name: 'B' });
   const c = store.createTag({ name: 'C' });
@@ -70,9 +65,8 @@ test('cycles are rejected atomically, including indirect and self links', (t) =>
   assert.equal(store.library().edges.length, 2);
 });
 
-test('rename preserves IDs, memberships and pins; deleting a tag keeps songs and child tags', (t) => {
-  const store = new LibraryStore(':memory:');
-  t.after(() => store.close());
+test('rename preserves IDs, memberships and pins; deleting a tag keeps songs and child tags', () => {
+  const store = new LibraryStore();
   const song = store.saveSong(songInput(1));
   const child = store.tags()[0].id;
   const parent = store.createTag({ name: 'Parent' });
@@ -97,9 +91,8 @@ test('rename preserves IDs, memberships and pins; deleting a tag keeps songs and
   );
 });
 
-test('artist-generated assignments coexist with manual ones and artist credits survive tag deletion', (t) => {
-  const store = new LibraryStore(':memory:');
-  t.after(() => store.close());
+test('artist-generated assignments coexist with manual ones and artist credits survive tag deletion', () => {
+  const store = new LibraryStore();
   const song = store.saveSong(
     songInput(1, ['Daft Punk', 'daft punk', 'Guest']),
   );
@@ -124,30 +117,4 @@ test('artist-generated assignments coexist with manual ones and artist credits s
   store.deleteSong(song);
   assert.equal(store.songs().length, 0);
   assert.equal(store.tags().find((tag) => tag.id === daft)!.songCount, 0);
-});
-
-test('database, pin state, and relationships survive a restart', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'setwise-test-'));
-  try {
-    const filename = join(directory, 'library.sqlite');
-    let store = new LibraryStore(filename);
-    const song = store.saveSong(songInput(1));
-    const parent = store.createTag({ name: 'Pinned' });
-    store.updateTag(parent, { pinned: true });
-    store.relate(
-      parent,
-      store.tags().find((tag) => tag.name === 'Daft Punk')!.id,
-      true,
-    );
-    store.close();
-    store = new LibraryStore(filename);
-    try {
-      assert.equal(store.tags()[0].pinned, true);
-      assert.equal(store.songs(parent)[0].id, song);
-    } finally {
-      store.close();
-    }
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
 });
