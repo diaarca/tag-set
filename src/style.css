@@ -408,6 +408,7 @@ h1 {
 }
 .collection-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 9px;
   align-items: center;
   margin-bottom: 30px;

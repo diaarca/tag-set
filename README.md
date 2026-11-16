@@ -4,7 +4,19 @@ A music library where tags connect songs, artists, and other tags. Search YouTub
 
 The local web app runs on macOS and Linux, or in WSL with a Windows browser. Native clients target iOS 17+ and macOS 14+, with independent local storage and unofficial native audio playback. Their default configuration supports free Personal Team installation on iPhone and local signing on Mac. CloudKit sync is a separate optional build. Physical-device playback and CloudKit sync still need validation; see [Apple app setup](apple/README.md).
 
-## Run locally
+The [YouTube Music wrapper](wrapper/README.md) packages the React interface and complete tag library for desktop and iOS. It stores data on each device and uses the full YouTube Music website for playback, independently of the local server. Android packaging and automatic device synchronization are not implemented.
+
+## Run the wrapper
+
+Install dependencies with `nix develop --command npm ci`, then launch:
+
+```sh
+nix develop .#wrapper --command npm run wrapper
+```
+
+The command builds the shared interface and opens Electron. To keep an existing library, export it from the web app and use **Import library** in the wrapper. Desktop and iPhone build instructions, storage details, and verification limits are in the [wrapper guide](wrapper/README.md).
+
+## Run the web client locally
 
 From the project directory, enter the pinned Nix development environment:
 
@@ -35,15 +47,15 @@ Choose **Add song** to search YouTube Music by title or artist. Each result show
 
 Alternatively, choose **Paste a link** and **Import song**. The app looks up the exact YouTube/YouTube Music video ID and imports its title and artist list without manual entry. Existing links open the existing song without another lookup. Artist tags are created or reused automatically.
 
-Choose **Import playlist** to add a public or unlisted YouTube Music playlist as a tag. The tag defaults to the playlist title; you can enter another name, including an existing tag's name. Import creates missing songs and artist tags, preserves existing song edits, and reports unavailable entries skipped. Reimporting adds songs without removing assignments. This is a snapshot import; later YouTube playlist changes are applied only when you import again. Empty or inaccessible playlists create no tag, and database writes roll back together if import fails.
+Choose **Import playlist** to add a public or unlisted YouTube Music playlist as a tag. The tag defaults to the playlist title; you can enter another name, including an existing tag's name. Import creates missing songs and artist tags, preserves existing song edits, and reports unavailable entries skipped. Reimporting adds songs without removing assignments. This is a snapshot import; later YouTube playlist changes are applied only when you import again. Empty or inaccessible playlists create no tag, and library changes are committed together only when import succeeds.
 
-Search and link metadata use the public YouTube Music catalog through the unofficial `ytmusicapi` client; no API key or YouTube sign-in is needed. Catalog access requires internet and may need a dependency update when YouTube changes. It uses structured artist credits rather than guessing names from a video title or treating the uploading channel as the artist. If credits are unavailable, the app shows an error and offers **Enter them manually**. Imported titles and artists remain editable.
+Search and link metadata use the public YouTube Music catalog. The web server uses the unofficial `ytmusicapi` client; the wrapper makes anonymous requests through its native host. No API key or YouTube sign-in is needed for catalog access. This requires internet and may need updates when YouTube changes. Both use structured artist credits rather than guessing names from a video title or treating the uploading channel as the artist. If credits are unavailable, the app shows an error and offers **Enter them manually**. Imported titles and artists remain editable.
 
 ## How tags work
 
 - Each imported artist automatically receives a tag; an existing tag with the same name is reused. Manual entry requires a YouTube/YouTube Music URL, title, and at least one artist, with multiple artists on separate lines. Duplicate video links open the existing song instead of creating another copy.
-- In the web app, click a song title to edit its details, assign existing tags, or create a tag directly on the song. Play a song with its numbered play button, or play the selected collection in title order.
-- In the web app, create tags with **New tag** or the **+** beside Your Library. Select a tag and choose **Edit tag** to rename it, pin it, or connect parent and child tags. The native clients provide the same operations through their sidebar and editors.
+- In the web and wrapper interfaces, click a song title to edit its details, assign existing tags, or create a tag directly on the song. Play a song with its numbered play button, use **Play collection** for title order, or choose **Shuffle play** on a tag to start with a randomized song and queue.
+- In the web and wrapper interfaces, create tags with **New tag** or the **+** beside Your Library. Select a tag and choose **Edit tag** to rename it, pin it, or connect parent and child tags. The SwiftUI clients provide the same operations through their sidebar and editors.
 - A parent contains songs assigned directly to it and every song in its children and descendants. For example, making `Daft Punk` a child of `atmosphere` brings all Daft Punk songs into atmosphere. A song can also have atmosphere directly.
 - Tags can have several parents. Each song appears once in a collection, even if several paths lead to it. Self-links and indirect loops are rejected.
 - Removing a relationship removes only that source of inheritance. Direct assignments and other paths continue to apply. Song details show both direct membership and the child tags responsible for inherited membership.
@@ -55,13 +67,17 @@ Artist credits and tag names are separate. Renaming an artist tag changes the co
 
 ## Playback
 
+The web and wrapper players loop the entire queue by default. The repeat button cycles through repeat-all, repeat-one, and off; your selection remains active until you change it or restart the app.
+
+The wrapper shows cover artwork and Setwise controls for tag-based queues, play/pause, seeking, shuffle, and repeat. The full YouTube Music website provides playback and Google account integration, stays hidden by default, and can be opened for sign-in or playback prompts. Wrapper library operations work locally; playback and catalog access need internet. See the [wrapper guide](wrapper/README.md#playback-and-accounts) for account and platform limits.
+
 Web playback uses the visible YouTube embedded player, with play/pause, previous/next, seeking, volume, shuffle, and repeat off/all/one. The player remains mounted while navigating the library. A collection starts a snapshot queue; later tag edits apply the next time you play the collection. Deleting a song removes it from the active queue. Queues and playback position are not saved across page reloads.
 
 Internet access is required for playback. YouTube may show ads or restrict videos by region, availability, account requirements, or embedding settings. Unavailable songs show Retry and Skip controls. Failed songs are skipped in subsequent queue navigation; exhausting the playable queue stops playback. Browser autoplay restrictions may require pressing Play or using the embedded player directly.
 
-The web embedded player stays visible: it does not expose YouTube Music's audio-only Song/Video switch, and hiding it would still download the video. Browsers may limit background or locked-screen playback. Native clients use AVPlayer with locally resolved audio-only streams through the pinned YouTubeKit dependency; iOS background audio and lock-screen commands are configured, but need real-device validation. No remote extraction service is enabled.
+The web embedded player stays visible: it does not expose YouTube Music's audio-only Song/Video switch, and hiding it would still download the video. Browsers may limit background or locked-screen playback. The separate SwiftUI clients use AVPlayer with locally resolved audio-only streams through the pinned YouTubeKit dependency; iOS background audio and lock-screen commands are configured, but need real-device validation. No remote extraction service is enabled.
 
-Neither client signs in to YouTube, continuously synchronizes YouTube playlists, downloads music for offline use, or offers offline playback. Library management and searching saved songs work without internet access; catalog search, metadata import, and playback contact YouTube. The unofficial catalog and native stream integrations can need updates when YouTube changes.
+The web and SwiftUI library clients do not sign in to YouTube, continuously synchronize YouTube playlists, download music for offline use, or offer offline playback. Library management and searching saved songs work without internet access; catalog search, metadata import, and playback contact YouTube. The unofficial catalog and native stream integrations can need updates when YouTube changes. The wrapper loads YouTube Music's website, including its own account interface; its local tag library stays separate from YouTube account playlists.
 
 ## Data and backup
 
@@ -71,22 +87,18 @@ To back up, stop the server cleanly with Ctrl+C and copy `data/library.sqlite` t
 
 Set `SETWISE_DB` to use another database location. Relative paths resolve from the directory where the server starts. Do not expose the server through a public proxy: this version has no accounts or authentication and is intended for one person on one computer.
 
-Use **Export library** in the web app to save a versioned JSON export containing songs, tags, pins, explicit assignments, and tag relationships. Import that file with **Import web library** in a native client. The default native build keeps its journal locally; optional CloudKit builds can synchronize changes through a shared private iCloud container after developer-account setup. The browser library remains independent after export; it is not automatically synchronized with the native clients. Live SQLite files should not be placed in Git or an iCloud Drive sync folder.
+Use **Export library** in the web app to save a versioned JSON export containing songs, tags, pins, explicit assignments, and tag relationships. Import it with **Import library** in the wrapper or **Import web library** in a SwiftUI client. The wrapper stores an independent JSON library and offers import/export for backup and device transfer. The SwiftUI build keeps its journal locally; optional CloudKit builds can synchronize through a shared private iCloud container after developer-account setup. These libraries remain independent after import. Live SQLite files should not be placed in Git or an iCloud Drive sync folder.
 
 ## Development checks
 
 Run inside the Nix shell (including WSL on Windows):
 
 ```sh
-npm run typecheck
-npm run lint
-npm run format:check
-npm test
-npm run build
+npm run check
 ```
 
-Tests exercise the actual SQLite library and Fastify API, catalog import and duplicate behavior, the Python catalog bridge with mocked responses, and queue behavior and player commands with a mock YouTube player. Automated tests do not call YouTube. Real catalog availability, video playback, browser autoplay, keyboard interaction, and responsive layout need live verification.
+The check runs type checking, lint, formatting, tests, and both client builds. Tests exercise SQLite and Fastify, compare the portable wrapper library with SQLite, verify atomic persistence and merges, cover catalog imports and continuations, and check queues and player commands. The npm tests do not call YouTube. Real catalog availability, video playback, browser autoplay, keyboard interaction, and responsive layout need live verification.
 
 Native graph, offline-merge, migration, and catalog parser tests use Swift Testing. Native build and verification instructions are in [apple/README.md](apple/README.md).
 
-The web stack is React and TypeScript, Vite, Fastify, better-sqlite3, and a small Python bridge to `ytmusicapi`. The local server serves both the built UI and JSON API. Native clients use SwiftUI, AVFoundation, CloudKit, and a Foundation-only catalog client; they do not require the web server or Python. Nix inputs and Python dependencies are pinned through `flake.lock`; npm dependencies are pinned in `package-lock.json`, and the Swift dependency is pinned in `apple/Package.resolved` and `apple/project.yml`. A scoped minimatch override keeps the TypeScript lint parser's dependency patched until its upstream dependency range catches up.
+The web stack is React and TypeScript, Vite, Fastify, better-sqlite3, and a small Python bridge to `ytmusicapi`. The local server serves the web UI and JSON API. The wrapper reuses the React interface with a portable library engine, Electron or WKWebView, and native file/catalog bridges. The separate SwiftUI clients use AVFoundation, CloudKit, and a Foundation-only catalog client. Both packaged approaches run independently of the web server and Python. Nix inputs and Python dependencies are pinned through `flake.lock`; npm dependencies are pinned in `package-lock.json`, and the Swift dependency is pinned in `apple/Package.resolved` and `apple/project.yml`. A scoped minimatch override keeps the TypeScript lint parser's dependency patched until its upstream dependency range catches up.

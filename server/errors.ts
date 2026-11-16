@@ -1,9 +1,1 @@
-export class AppError extends Error {
-  constructor(
-    public statusCode: number,
-    message: string,
-    public songId?: number,
-  ) {
-    super(message);
-  }
-}
+export * from '../shared/errors.js';

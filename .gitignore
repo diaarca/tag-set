@@ -11,4 +11,6 @@ __pycache__/
 DerivedData/
 xcuserdata/
 apple/Setwise.xcodeproj/
+apple/SetwiseWrapper.xcodeproj/
 apple/Config/Signing.local.xcconfig
+wrapper/bundle/

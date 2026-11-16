@@ -16,13 +16,13 @@ export const emptyQueue: QueueState = {
   index: 0,
   playing: false,
   shuffle: false,
-  repeat: 'off',
+  repeat: 'all',
   failed: [],
   error: '',
   revision: 0,
 };
 export type QueueAction =
-  | { type: 'start'; songs: Song[] }
+  | { type: 'start'; songs: Song[]; shuffle?: boolean }
   | {
       type:
         | 'next'
@@ -53,10 +53,12 @@ export function queueReducer(
   const current = state.songs[state.index];
   switch (action.type) {
     case 'start': {
-      const songs = state.shuffle ? shuffled(action.songs) : [...action.songs];
+      const shuffle = action.shuffle ?? state.shuffle;
+      const songs = shuffle ? shuffled(action.songs) : [...action.songs];
       return {
         ...state,
         songs,
+        shuffle,
         index: 0,
         playing: songs.length > 0,
         failed: [],

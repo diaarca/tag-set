@@ -7,17 +7,23 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'wrapper/bundle/**',
       'node_modules/**',
       'data/**',
       '**/.build/**',
       'apple/Setwise.xcodeproj/**',
+      'apple/SetwiseWrapper.xcodeproj/**',
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['wrapper/desktop/*.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}', 'wrapper/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': hooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',

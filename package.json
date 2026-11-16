@@ -7,14 +7,17 @@
     "node": ">=24"
   },
   "scripts": {
+    "wrapper": "npm run build:wrapper && electron wrapper/desktop/main.mjs",
+    "build:wrapper": "vite build --config wrapper/vite.config.ts",
     "dev": "concurrently -k \"tsx watch server/index.ts\" \"vite --host 127.0.0.1\"",
     "build": "tsc -p tsconfig.server.json && node -e \"require('node:fs').copyFileSync('server/catalog.py', 'dist/server/server/catalog.py')\" && vite build",
     "start": "node dist/server/server/index.js",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "tsx --test tests/*.test.ts && python3 -m unittest discover -s tests",
+    "test:wrapper-navigation": "electron tests/wrapper-navigation.electron.mjs",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run build && npm run build:wrapper"
   },
   "dependencies": {
     "@fastify/static": "^10.1.11",

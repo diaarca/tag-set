@@ -16,7 +16,7 @@ import {
 } from './youtube';
 
 export interface PlayerHandle {
-  start(songs: Song[]): void;
+  start(songs: Song[], options?: { shuffle: boolean }): void;
   remove(id: number): void;
 }
 const time = (seconds: number) =>
@@ -38,7 +38,8 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   useImperativeHandle(
     ref,
     () => ({
-      start: (songs) => dispatch({ type: 'start', songs }),
+      start: (songs, options) =>
+        dispatch({ type: 'start', songs, shuffle: options?.shuffle }),
       remove: (id) => dispatch({ type: 'remove', id }),
     }),
     [],

@@ -68,8 +68,8 @@ export const WrapperPlayer = forwardRef<PlayerHandle>(
     useImperativeHandle(
       ref,
       () => ({
-        start(songs) {
-          dispatch({ type: 'start', songs });
+        start(songs, options) {
+          dispatch({ type: 'start', songs, shuffle: options?.shuffle });
           panel.current?.scrollIntoView({
             block: 'nearest',
             behavior: 'smooth',
@@ -279,6 +279,50 @@ export const WrapperPlayer = forwardRef<PlayerHandle>(
     const position = matching ? playback.position : 0,
       duration = matching ? playback.duration : 0;
     const playing = loading ? queue.playing : matching && !playback.paused;
+    const togglePlayback = useCallback(() => {
+      if (!song) return;
+      if (active.current?.ended || (!matching && !loading))
+        dispatch({ type: 'retry' });
+      else if (!loading && matching && playback.paused && queue.playing)
+        send({ type: 'play' });
+      else dispatch({ type: 'toggle' });
+    }, [song, matching, loading, playback.paused, queue.playing]);
+    useEffect(() => {
+      const handleKey = (event: KeyboardEvent) => {
+        if (
+          event.code !== 'Space' ||
+          event.defaultPrevented ||
+          event.isComposing ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          !document.hasFocus() ||
+          document.hidden ||
+          !song ||
+          document.querySelector('dialog[open]')
+        )
+          return;
+        const target = event.target;
+        const playbackSlider =
+          target instanceof HTMLInputElement &&
+          target.type === 'range' &&
+          panel.current?.contains(target);
+        if (
+          target instanceof HTMLElement &&
+          (target.isContentEditable ||
+            (!playbackSlider &&
+              target.closest(
+                'input, textarea, select, button, a[href], [role="button"], [role="textbox"], [role="slider"], [role="combobox"], [role="checkbox"], [role="switch"]',
+              )))
+        )
+          return;
+        event.preventDefault();
+        if (!event.repeat) togglePlayback();
+      };
+      window.addEventListener('keydown', handleKey);
+      return () => window.removeEventListener('keydown', handleKey);
+    }, [song, togglePlayback]);
     const cover = artwork && artwork.videoId === videoId ? artwork.url : null;
     const thumbnail = videoId
       ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
@@ -390,13 +434,7 @@ export const WrapperPlayer = forwardRef<PlayerHandle>(
             className="play-toggle"
             aria-label={playing ? 'Pause' : 'Play'}
             disabled={!song}
-            onClick={() => {
-              if (active.current?.ended || (!matching && !loading))
-                dispatch({ type: 'retry' });
-              else if (!loading && matching && playback.paused && queue.playing)
-                send({ type: 'play' });
-              else dispatch({ type: 'toggle' });
-            }}
+            onClick={togglePlayback}
           >
             {playing ? 'Ⅱ' : '▶'}
           </button>

@@ -12,6 +12,9 @@
           default = pkgs.mkShell {
             packages = [ pkgs.nodejs_24 (pkgs.python3.withPackages (ps: [ ps.ytmusicapi ])) ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.gnumake pkgs.gcc ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen pkgs.swift pkgs.swiftPackages.swiftpm ];
           };
+          wrapper = pkgs.mkShell {
+            packages = [ pkgs.nodejs_24 pkgs.electron ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen ];
+          };
         });
     };
 }

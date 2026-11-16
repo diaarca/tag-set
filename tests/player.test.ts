@@ -12,7 +12,10 @@ const songs: Song[] = [1, 2, 3].map((id) => ({
 }));
 
 test('queue snapshots songs, advances, repeats, and responds to deletion', () => {
-  let state = queueReducer(emptyQueue, { type: 'start', songs });
+  let state = queueReducer(
+    { ...emptyQueue, repeat: 'off' },
+    { type: 'start', songs },
+  );
   assert.notEqual(state.songs, songs);
   const initialRevision = state.revision;
   state = queueReducer(state, { type: 'previous' });
@@ -47,7 +50,6 @@ test('queue snapshots songs, advances, repeats, and responds to deletion', () =>
 
 test('unavailable songs do not loop forever, and retry permits another attempt', () => {
   let state = queueReducer(emptyQueue, { type: 'start', songs });
-  state = queueReducer(state, { type: 'repeat' });
   for (let i = 0; i < 3; i++) {
     state = queueReducer(state, { type: 'fail', message: 'Unavailable' });
     state = queueReducer(state, { type: 'next' });
@@ -64,6 +66,31 @@ test('unavailable songs do not loop forever, and retry permits another attempt',
   assert.equal(state.failed.length, 2);
   state = queueReducer(state, { type: 'start', songs: [songs[0]] });
   assert.deepEqual(state.failed, []);
+});
+
+test('shuffle play randomizes the initial song and loops the collection by default', (t) => {
+  t.mock.method(Math, 'random', () => 0);
+  let state = queueReducer(emptyQueue, { type: 'start', songs, shuffle: true });
+  assert.equal(state.shuffle, true);
+  assert.equal(state.repeat, 'all');
+  assert.equal(state.playing, true);
+  assert.deepEqual(
+    state.songs.map((song) => song.id),
+    [2, 3, 1],
+  );
+  assert.deepEqual(
+    songs.map((song) => song.id),
+    [1, 2, 3],
+  );
+  for (let i = 0; i < songs.length; i++)
+    state = queueReducer(state, { type: 'ended' });
+  assert.equal(state.index, 0);
+  assert.equal(state.playing, true);
+  state = queueReducer(state, { type: 'start', songs, shuffle: false });
+  assert.equal(state.shuffle, false);
+  assert.deepEqual(state.songs, songs);
+  state = queueReducer(state, { type: 'start', songs: [], shuffle: true });
+  assert.equal(state.playing, false);
 });
 
 test('shuffle preserves every song and keeps the current song selected', () => {
