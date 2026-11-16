@@ -22,7 +22,22 @@ The command builds the shared interface and opens Electron. The optional `wrappe
 
 On macOS, quit fully with **Command-Q** before relaunching to load source changes. Launching a second instance focuses the existing one. Google sign-in may open a child window within the same application. The persistent YouTube Music session is retained between launches.
 
-Desktop source targets macOS, Windows, and Linux; only macOS has had live playback checks. On Windows, install npm dependencies with Node.js 24+, run `npm run build:wrapper`, then use the matching [Windows Electron distribution](https://github.com/electron/electron/releases/tag/v45.2.3) to run `electron.exe wrapper/desktop/main.mjs`. Installers and distribution signing are not provided. Android packaging is not implemented.
+To create downloadable desktop packages, install npm dependencies as above, then run from the repository root:
+
+| Command                 | Output in `dist/releases`                         |
+| ----------------------- | ------------------------------------------------- |
+| `nix run .#dmg`         | `Setwise-0.1.0-arm64.dmg` for Apple Silicon macOS |
+| `nix run .#windows`     | `Setwise-0.1.0-windows-x64-setup.exe`             |
+| `nix run .#linux`       | `Setwise-0.1.0-linux-x64.tar.gz`                  |
+| `nix run .#linux-arm64` | `Setwise-0.1.0-linux-arm64.tar.gz`                |
+
+Each command rebuilds the interface and bundles the original, pinned Electron runtime and license notices. The version comes from `package.json`. Windows and Linux packages can be built on Apple Silicon macOS or supported Linux build hosts. They need no Nix, Node.js, Python, or local server on the destination device. Packages contain no personal library data or account cookies and keep the same library/session location as the development wrapper.
+
+On macOS, open the image and drag **Setwise.app** onto **Applications**. The build is ad-hoc signed for local use, without Developer ID signing or Apple notarization. Downloaded copies may be blocked by Gatekeeper; trusted distribution requires a separate signing/notarization setup. The DMG command supports Apple Silicon Macs running macOS 13 or later. The pinned Nixpkgs version has dropped Intel Mac build-host support.
+
+On 64-bit Windows, run the setup executable. The NSIS installer installs under your user's Local AppData, adds a Start menu shortcut and an uninstall entry, and requires no administrator rights. Close Setwise before updating. Uninstalling preserves your separate library and session data. The installer is unsigned and may trigger SmartScreen. Its runtime checksum is pinned in `flake.nix` and must be updated when upgrading Electron.
+
+On Linux, extract the archive and run `./Setwise/setwise`. Choose the archive matching the device's architecture. The app requires the usual Electron desktop libraries (including GTK, NSS, and ALSA) and a working Chromium user-namespace sandbox; it does not disable the sandbox. The archive does not install system packages or desktop shortcuts. Windows and Linux installation/playback still need verification on those operating systems. Android packaging is not implemented. Packaging commands do not publish artifacts or install desktop apps automatically.
 
 ## iPhone and iPad
 
@@ -40,6 +55,25 @@ After changing shared UI code, run `npm run build:wrapper` before building in Xc
 
 The iOS shell uses local files and the same library engine as desktop. Its audio-session category and background audio mode are configured, but physical-device sign-in and lock-screen playback still need verification. Use the device's volume buttons on iOS.
 
+For a reproducible device archive, run:
+
+```sh
+nix run .#ios
+```
+
+This builds `dist/releases/Setwise-0.1.0-ios.xcarchive` without signing. Use Xcode or the direct-install command below to sign and install the app on a device. Existing Xcode signing choices are preserved; a project is generated only when missing. Full Xcode is required, and its compiler environment is isolated from Nix's SDK/compiler variables.
+
+With a free Personal Team, install directly on a connected, trusted device with Developer Mode enabled:
+
+```sh
+nix run .#ios -- --list-devices
+nix run .#ios -- --device DEVICE_ID --allow-provisioning-updates
+```
+
+Use your connected iPhone/iPad's UDID under the first command's **Devices** section (not a simulator). Sign in through Xcode's account settings and select your Personal Team in the project first. The command uses that configured team; `--team TEAM_ID` can explicitly override it with a ten-character Apple team ID. It builds and verifies the signed device app, then installs it with Apple's `devicectl`, without launching the app or uploading to Apple. `--allow-provisioning-updates` permits Xcode to manage signing profiles; omit it when using existing profiles only.
+
+Free Personal Teams do not provide general app distribution. Their provisioning profiles expire seven days after issuance, so rebuild/reinstall to renew signing. Keep the same bundle identifier and app data. See [Apple's account limits](https://developer.apple.com/help/account/basics/about-your-developer-account). Signed installation through this command has been verified on a connected iPhone.
+
 ## Your library
 
 Use **Add song** to search YouTube Music, paste a song link, import a public playlist as a tag, or enter metadata manually. Titles and structured artist credits come from the public catalog through anonymous requests made by the native host. Catalog access needs internet; browsing and editing saved library data work offline. Tag behavior and editors match the [main app documentation](../README.md#how-tags-work).
@@ -52,7 +86,7 @@ Desktop saves `library.json` in Electron's `userData` directory. iOS saves `Setw
 
 ## Playback and accounts
 
-Select a song or tag and choose **Play collection** for title order, or choose **Shuffle play** on a tag to randomize the whole queue, including the first song. The entire queue loops by default; the repeat button cycles through repeat-all, repeat-one, and off. The player shows the song's cover above Setwise's controls; the YouTube Music website stays loaded behind the interface, hidden by default. Setwise controls queue selection, pause/resume, seeking, shuffle, and repeat. The website handles audio, availability, ads, and account features. Advertisement endings do not advance the queue. A queue is a snapshot; later library changes apply when you start the collection again. Queues and playback position are not persisted across launches.
+Select a song or tag and choose **Play collection** for title order, or choose **Shuffle play** on a tag or **All songs** to randomize the whole queue, including the first song. The entire queue loops by default; the repeat button cycles through repeat-all, repeat-one, and off. The player shows the song's cover above Setwise's controls; the YouTube Music website stays loaded behind the interface, hidden by default. Setwise controls queue selection, pause/resume, seeking, shuffle, and repeat. The website handles audio, availability, ads, and account features. Advertisement endings do not advance the queue. A queue is a snapshot; later library changes apply when you start the collection again. Queues and playback position are not persisted across launches.
 
 Next/Previous media keys and system media-session controls navigate Setwise's queue rather than YouTube Music's recommendations. The bridge preserves these handlers when the website registers its own again. Both media actions and on-screen skips ignore playback reports from the previous track while loading the next one. Playing a single song starts a one-song queue; use **Play collection** to queue the selected tag or library.
 
@@ -70,4 +104,6 @@ Credentials and cookies stay in the website's persistent Electron partition or W
 
 Run `nix develop .#wrapper --command npm run test:wrapper-navigation` for an isolated, hidden Electron regression test. It reproduces a real Chromium leave-page block, verifies consecutive track changes through the production navigation handler, and checks that ordinary navigation remains protected. It uses local fixture pages and a separate test profile without contacting YouTube or using your account.
 
-Live catalog checks retrieved the reported [#Hulahoop track](https://music.youtube.com/watch?v=EsAQYAeqxD4), search results, and a public playlist. The desktop playback integration previously played that track and advanced a queue; its embedded player returned error 150. An isolated Electron UI check with simulated playback verified button skips, media navigation, stale reports, and skipping while paused. Physical macOS media-key delivery still needs live verification. The full interface loads in the iPhone Simulator, and a native UI check created a tag, pinned it, restarted the app, and verified persistence. Playback with the website hidden needs live verification. Physical iPhone background playback and desktop platforms other than macOS remain unverified.
+Live catalog checks retrieved the reported [#Hulahoop track](https://music.youtube.com/watch?v=EsAQYAeqxD4), search results, and a public playlist. The desktop playback integration played that track and advanced a queue; its embedded player returned error 150. The user confirmed macOS wrapper playback and DMG launch. Isolated Electron UI checks with simulated playback verified skips, stale reports, shuffle starts, repeat defaults, loading timeouts, and keyboard controls. Physical macOS media-key delivery still needs live verification.
+
+Packaging checks built and inspected the macOS DMG, Windows NSIS installer, both Linux archives, and unsigned iOS arm64 archive, including runtime architecture, UI resources, and license notices. A signed Release build was verified and installed on a connected iPhone through the new command. Windows/Linux launch and playback remain unverified. The full interface loads in the iPhone Simulator, where a native UI check verified tag creation, pinning, and persistence across restart. Physical iPhone sign-in and background playback still need verification.

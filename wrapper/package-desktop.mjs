@@ -1,0 +1,112 @@
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
+import { buildInterface, copyApplication, run } from './packaging.mjs';
+
+function nsisText(value) {
+  return value
+    .replaceAll('$', () => '$$')
+    .replaceAll('"', '$\\"')
+    .replaceAll('\r', '$\\r')
+    .replaceAll('\n', '$\\n');
+}
+
+async function uninstallCommands(root, directory = root) {
+  const commands = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const filename = join(directory, entry.name);
+    const path = nsisText(
+      relative(root, filename).replaceAll('\\', '/').replaceAll('/', '\\'),
+    );
+    if (entry.isDirectory()) {
+      commands.push(
+        ...(await uninstallCommands(root, filename)),
+        `RMDir "$INSTDIR\\${path}"`,
+      );
+    } else commands.push(`Delete "$INSTDIR\\${path}"`);
+  }
+  return commands;
+}
+
+async function build() {
+  const [target, archive, ...extra] = process.argv.slice(2);
+  if (
+    !['windows-x64', 'linux-x64', 'linux-arm64'].includes(target) ||
+    !archive ||
+    extra.length
+  )
+    throw new Error(
+      'Run nix run .#windows, .#linux, or .#linux-arm64 from the repository root.',
+    );
+  const manifest = await buildInterface();
+  const output = resolve('dist/releases');
+  await mkdir(output, { recursive: true });
+  const work = await mkdtemp(join(output, `.${target}-`));
+  try {
+    const application = join(work, 'Setwise');
+    await mkdir(application);
+    run('unzip', ['-q', archive, '-d', application]);
+    await rm(join(application, 'resources/default_app.asar'), { force: true });
+    await copyApplication(join(application, 'resources/app'), manifest.version);
+    const base = `Setwise-${manifest.version}-${target}`;
+    if (target === 'windows-x64') {
+      await rename(
+        join(application, 'electron.exe'),
+        join(application, 'Setwise.exe'),
+      );
+      const uninstall = join(work, 'uninstall-files.nsh');
+      await writeFile(
+        uninstall,
+        (await uninstallCommands(application)).join('\n') + '\n',
+      );
+      const installer = join(work, `${base}-setup.exe`);
+      run('makensis', [
+        `-DVERSION=${manifest.version}`,
+        `-DSOURCE_DIR=${nsisText(application)}`,
+        `-DOUTPUT_FILE=${nsisText(installer)}`,
+        `-DUNINSTALL_FILES=${nsisText(uninstall)}`,
+        resolve('wrapper/windows-installer.nsi'),
+      ]);
+      await rename(installer, join(output, `${base}-setup.exe`));
+      console.log(
+        `Created ${join(output, `${base}-setup.exe`)} (per-user installer, no administrator rights required).`,
+      );
+    } else {
+      await rename(join(application, 'electron'), join(application, 'setwise'));
+      await chmod(join(application, 'setwise'), 0o755);
+      await chmod(join(application, 'chrome-sandbox'), 0o755);
+      await writeFile(
+        join(application, 'README.txt'),
+        'Setwise\n\nExtract this archive, then run ./Setwise/setwise.\nRequires Linux desktop libraries and Chromium user-namespace sandbox support.\nYour library is stored separately in your user configuration directory.\n',
+      );
+      const filename = `${base}.tar.gz`;
+      run('tar', [
+        '--owner=0',
+        '--group=0',
+        '-czf',
+        join(work, filename),
+        '-C',
+        work,
+        'Setwise',
+      ]);
+      await rename(join(work, filename), join(output, filename));
+      console.log(
+        `Created ${join(output, filename)}. Extract and run ./Setwise/setwise.`,
+      );
+    }
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
+
+build().catch((error) => {
+  console.error(error.message);
+  process.exitCode = 1;
+});
