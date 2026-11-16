@@ -1,0 +1,4 @@
+PRODUCT_BUNDLE_IDENTIFIER = dev.dylan.Setwise
+
+// Local overrides survive project regeneration and are excluded from Git.
+#include? "Signing.local.xcconfig"
