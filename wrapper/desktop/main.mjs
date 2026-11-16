@@ -1,5 +1,12 @@
-import { app, BrowserWindow, WebContentsView, ipcMain, dialog } from 'electron';
-import { readFileSync } from 'node:fs';
+import {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  ipcMain,
+  dialog,
+  Menu,
+} from 'electron';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import '../protocol.js';
@@ -7,12 +14,17 @@ import { atomicWrite, createLibraryStorage, libraryText } from './storage.mjs';
 import { catalogRequest } from './catalog.mjs';
 import { createTrackNavigation } from './navigation.mjs';
 const { allowedNavigation, validateCommand, artworkURL } =
-  globalThis.setwiseProtocol;
+  globalThis.tagsetProtocol;
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const uiURL = pathToFileURL(join(root, 'bundle/index.html')).href;
 const bridge = readFileSync(join(root, 'player-bridge.js'), 'utf8');
+// Keep storage paths and cookie-encryption keys through the rename.
 app.setName('Setwise Wrapper');
+const userData = join(app.getPath('appData'), 'Setwise Wrapper');
+mkdirSync(userData, { recursive: true, mode: 0o700 });
+app.setPath('userData', userData);
+app.setPath('sessionData', userData);
 let window;
 let music;
 let storage;
@@ -59,7 +71,7 @@ function configureNavigation(contents) {
   contents.on('will-redirect', guard);
   contents.setWindowOpenHandler(({ url }) => {
     if (!allowedNavigation(url)) {
-      report({ error: 'This popup cannot be opened inside Setwise.' });
+      report({ error: 'This popup cannot be opened inside TagSet.' });
       return { action: 'deny' };
     }
     // Preserve the popup's opener and session so sign-in can complete normally.
@@ -100,7 +112,7 @@ function createWindow() {
     join(app.getPath('userData'), 'library.json'),
   );
   window = new BrowserWindow({
-    title: 'Setwise',
+    title: 'TagSet',
     width: 1420,
     height: 900,
     minWidth: 380,
@@ -141,7 +153,7 @@ function createWindow() {
     if (new URL(music.webContents.getURL()).hostname === 'music.youtube.com')
       void music.webContents
         .executeJavaScript(
-          `window.__setwiseLoadToken = ${JSON.stringify(loadToken)}; window.__setwisePreferredVolume = ${volume / 100}; ${bridge}`,
+          `window.__tagsetLoadToken = ${JSON.stringify(loadToken)}; window.__tagsetPreferredVolume = ${volume / 100}; ${bridge}`,
         )
         .catch((error) => report({ error: error.message }));
   });
@@ -211,7 +223,7 @@ function trusted(event) {
 
 ipcMain.handle('wrapper-request', async (event, operation, payload) => {
   if (!trusted(event))
-    throw new Error('Only the local Setwise interface can access its library.');
+    throw new Error('Only the local TagSet interface can access its library.');
   switch (operation) {
     case 'readLibrary':
       return storage.read();
@@ -225,8 +237,8 @@ ipcMain.handle('wrapper-request', async (event, operation, payload) => {
     case 'exportLibrary': {
       const data = libraryText(payload);
       const result = await dialog.showSaveDialog(window, {
-        defaultPath: 'setwise-library.json',
-        filters: [{ name: 'Setwise library', extensions: ['json'] }],
+        defaultPath: 'tagset-library.json',
+        filters: [{ name: 'TagSet library', extensions: ['json'] }],
       });
       if (!result.canceled && result.filePath)
         await atomicWrite(result.filePath, data);
@@ -255,14 +267,14 @@ ipcMain.on('wrapper-command', async (event, value) => {
       volume = command.value;
       if (music.webContents.getURL().startsWith('https://music.youtube.com/'))
         await music.webContents.executeJavaScript(
-          `(() => { window.__setwisePreferredVolume = ${volume / 100}; return window.__setwiseControl?.('volume', ${volume}); })()`,
+          `(() => { window.__tagsetPreferredVolume = ${volume / 100}; return window.__tagsetControl?.('volume', ${volume}); })()`,
         );
       return;
     }
     if (!music.webContents.getURL().startsWith('https://music.youtube.com/'))
       throw new Error('Return to YouTube Music before controlling playback.');
     await music.webContents.executeJavaScript(
-      `(async () => { if (!window.__setwiseControl) { ${command.type === 'pause' ? 'return true' : "throw new Error('YouTube Music is still loading. Open YouTube Music if playback needs a prompt.')"}; } return await window.__setwiseControl(${JSON.stringify(command.type)}, ${command.type === 'seek' ? command.value : 'null'}); })()`,
+      `(async () => { if (!window.__tagsetControl) { ${command.type === 'pause' ? 'return true' : "throw new Error('YouTube Music is still loading. Open YouTube Music if playback needs a prompt.')"}; } return await window.__tagsetControl(${JSON.stringify(command.type)}, ${command.type === 'seek' ? command.value : 'null'}); })()`,
       true,
     );
   } catch (error) {
@@ -279,7 +291,33 @@ if (!app.requestSingleInstanceLock()) {
     window.show();
     window.focus();
   });
-  void app.whenReady().then(createWindow);
+  void app.whenReady().then(() => {
+    app.setAboutPanelOptions({ applicationName: 'TagSet' });
+    if (process.platform === 'darwin')
+      Menu.setApplicationMenu(
+        Menu.buildFromTemplate([
+          {
+            label: 'TagSet',
+            submenu: [
+              { label: 'About TagSet', role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { label: 'Hide TagSet', role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { label: 'Quit TagSet', role: 'quit' },
+            ],
+          },
+          { role: 'fileMenu' },
+          { role: 'editMenu' },
+          { role: 'viewMenu' },
+          { role: 'windowMenu' },
+        ]),
+      );
+    createWindow();
+  });
   app.on('activate', () => {
     if (!window || window.isDestroyed()) createWindow();
   });

@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('setwiseHost', {
+contextBridge.exposeInMainWorld('tagsetHost', {
   send: (command) => ipcRenderer.send('wrapper-command', command),
   request: (operation, payload) =>
     ipcRenderer.invoke('wrapper-request', operation, payload),

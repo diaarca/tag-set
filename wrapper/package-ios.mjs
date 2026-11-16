@@ -81,7 +81,7 @@ async function build() {
     return;
   }
   const manifest = await buildInterface();
-  const project = resolve('apple/SetwiseWrapper.xcodeproj');
+  const project = resolve('apple/TagSet.xcodeproj');
   try {
     await access(project);
   } catch {
@@ -91,7 +91,7 @@ async function build() {
     '-project',
     project,
     '-scheme',
-    'SetwiseWrapper-iOS',
+    'TagSet-iOS',
     '-configuration',
     'Release',
   ];
@@ -108,7 +108,7 @@ async function build() {
     );
     const team =
       values.team ??
-      settings.find((row) => row.target === 'SetwiseWrapper-iOS')?.buildSettings
+      settings.find((row) => row.target === 'TagSet-iOS')?.buildSettings
         .DEVELOPMENT_TEAM;
     if (!team)
       throw new Error(
@@ -133,7 +133,7 @@ async function build() {
     ]);
     const application = join(
       derived,
-      'Build/Products/Release-iphoneos/SetwiseWrapper-iOS.app',
+      'Build/Products/Release-iphoneos/TagSet-iOS.app',
     );
     await access(join(application, 'embedded.mobileprovision'));
     apple('/usr/bin/codesign', ['--verify', '--deep', '--strict', application]);
@@ -147,7 +147,7 @@ async function build() {
       application,
     ]);
     console.log(
-      'Installed Setwise Wrapper. Free Personal Team signing needs renewal, normally after seven days.',
+      'Installed TagSet. Free Personal Team signing needs renewal, normally after seven days.',
     );
     return;
   }
@@ -155,7 +155,7 @@ async function build() {
   await mkdir(output, { recursive: true });
   const work = await mkdtemp(join(output, '.ios-'));
   try {
-    const archive = join(work, 'Setwise.xcarchive');
+    const archive = join(work, 'TagSet.xcarchive');
     apple('/usr/bin/xcodebuild', [
       ...base,
       '-sdk',
@@ -171,14 +171,11 @@ async function build() {
       'CODE_SIGNING_ALLOWED=NO',
     ]);
     await access(
-      join(
-        archive,
-        'Products/Applications/SetwiseWrapper-iOS.app/bundle/index.html',
-      ),
+      join(archive, 'Products/Applications/TagSet-iOS.app/bundle/index.html'),
     );
     const destination = join(
       output,
-      `Setwise-${manifest.version}-ios.xcarchive`,
+      `TagSet-${manifest.version}-ios.xcarchive`,
     );
     await rm(destination, { recursive: true, force: true });
     await rename(archive, destination);

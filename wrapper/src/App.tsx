@@ -128,7 +128,7 @@ export function App() {
         <a
           className="brand"
           href="/"
-          aria-label="Setwise home"
+          aria-label="TagSet home"
           onClick={(event) => {
             event.preventDefault();
             chooseTag(null);
@@ -139,7 +139,7 @@ export function App() {
             <i />
             <i />
           </span>
-          setwise<span className="brand-period">.</span>
+          TagSet<span className="brand-period">.</span>
         </a>
         <div className="library-heading">
           <span className="eyebrow">YOUR LIBRARY</span>

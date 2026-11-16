@@ -50,16 +50,16 @@ async function build() {
   await mkdir(output, { recursive: true });
   const work = await mkdtemp(join(output, `.${target}-`));
   try {
-    const application = join(work, 'Setwise');
+    const application = join(work, 'TagSet');
     await mkdir(application);
     run('unzip', ['-q', archive, '-d', application]);
     await rm(join(application, 'resources/default_app.asar'), { force: true });
     await copyApplication(join(application, 'resources/app'), manifest.version);
-    const base = `Setwise-${manifest.version}-${target}`;
+    const base = `TagSet-${manifest.version}-${target}`;
     if (target === 'windows-x64') {
       await rename(
         join(application, 'electron.exe'),
-        join(application, 'Setwise.exe'),
+        join(application, 'TagSet.exe'),
       );
       const uninstall = join(work, 'uninstall-files.nsh');
       await writeFile(
@@ -79,12 +79,12 @@ async function build() {
         `Created ${join(output, `${base}-setup.exe`)} (per-user installer, no administrator rights required).`,
       );
     } else {
-      await rename(join(application, 'electron'), join(application, 'setwise'));
-      await chmod(join(application, 'setwise'), 0o755);
+      await rename(join(application, 'electron'), join(application, 'tagset'));
+      await chmod(join(application, 'tagset'), 0o755);
       await chmod(join(application, 'chrome-sandbox'), 0o755);
       await writeFile(
         join(application, 'README.txt'),
-        'Setwise\n\nExtract this archive, then run ./Setwise/setwise.\nRequires Linux desktop libraries and Chromium user-namespace sandbox support.\nYour library is stored separately in your user configuration directory.\n',
+        'TagSet\n\nExtract this archive, then run ./TagSet/tagset.\nRequires Linux desktop libraries and Chromium user-namespace sandbox support.\nYour library is stored separately in your user configuration directory.\n',
       );
       const filename = `${base}.tar.gz`;
       run('tar', [
@@ -94,11 +94,11 @@ async function build() {
         join(work, filename),
         '-C',
         work,
-        'Setwise',
+        'TagSet',
       ]);
       await rename(join(work, filename), join(output, filename));
       console.log(
-        `Created ${join(output, filename)}. Extract and run ./Setwise/setwise.`,
+        `Created ${join(output, filename)}. Extract and run ./TagSet/tagset.`,
       );
     }
   } finally {

@@ -11,7 +11,7 @@ export default defineConfig({
     emptyOutDir: true,
     lib: {
       entry: fileURLToPath(new URL('./wrapper/src/main.tsx', import.meta.url)),
-      name: 'Setwise',
+      name: 'TagSet',
       formats: ['iife'],
       fileName: () => 'app.js',
       cssFileName: 'style',

@@ -14,12 +14,9 @@ export function run(command, args, options = {}) {
 
 export async function buildInterface() {
   const manifest = JSON.parse(await readFile('package.json', 'utf8'));
-  if (
-    manifest.name !== 'set-wise-music-player' ||
-    !/^\d+\.\d+\.\d+$/.test(manifest.version)
-  )
+  if (manifest.name !== 'tag-set' || !/^\d+\.\d+\.\d+$/.test(manifest.version))
     throw new Error(
-      'Run this command from the Setwise repository root with a valid release version.',
+      'Run this command from the TagSet repository root with a valid release version.',
     );
   try {
     await access('node_modules/vite/bin/vite.js');
@@ -36,8 +33,8 @@ export async function copyApplication(destination, version) {
     join(destination, 'package.json'),
     JSON.stringify(
       {
-        name: 'setwise-wrapper',
-        productName: 'Setwise Wrapper',
+        name: 'tag-set',
+        productName: 'TagSet',
         version,
         type: 'module',
         main: 'desktop/main.mjs',

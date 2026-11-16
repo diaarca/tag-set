@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('setwisePlaybackHost', {
+contextBridge.exposeInMainWorld('tagsetPlaybackHost', {
   report: (message) => ipcRenderer.send('wrapper-playback', message),
 });

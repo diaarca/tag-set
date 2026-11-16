@@ -11,7 +11,7 @@ export type WrapperCommand =
       visible: boolean;
     };
 declare global {
-  var setwiseProtocol: {
+  var tagsetProtocol: {
     validateCommand(value: unknown): WrapperCommand;
     allowedNavigation(value: string): boolean;
     artworkURL(value: unknown): string | null;

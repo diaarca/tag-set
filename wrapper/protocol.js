@@ -96,7 +96,7 @@
     }
   }
 
-  globalThis.setwiseProtocol = Object.freeze({
+  globalThis.tagsetProtocol = Object.freeze({
     validateCommand,
     allowedNavigation,
     artworkURL,

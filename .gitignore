@@ -9,6 +9,6 @@ result
 .build/
 DerivedData/
 xcuserdata/
-apple/SetwiseWrapper.xcodeproj/
+apple/TagSet.xcodeproj/
 apple/Config/Signing.local.xcconfig
 wrapper/bundle/

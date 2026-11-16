@@ -6,7 +6,7 @@ import { createTrackNavigation } from '../wrapper/desktop/navigation.mjs';
 import '../wrapper/protocol.js';
 import { videoId } from '../shared/validation.js';
 const { allowedNavigation, validateCommand, artworkURL } =
-  globalThis.setwiseProtocol;
+  globalThis.tagsetProtocol;
 
 test('track loads ignore superseded failures and report the latest failure', async () => {
   const failures: ((error: Error) => void)[] = [];
@@ -153,15 +153,15 @@ test('player identity and commands survive navigation away from the watch page',
       media.volume = value / 100;
     },
   };
-  const browser = { __setwiseLoadToken: 'current-request' } as {
-    __setwiseLoadToken: string;
-    __setwisePlayback: {
+  const browser = { __tagsetLoadToken: 'current-request' } as {
+    __tagsetLoadToken: string;
+    __tagsetPlayback: {
       videoId: string;
       artwork: string;
       loadToken: string;
       paused: boolean;
     };
-    __setwiseControl: (command: string, value?: number) => Promise<boolean>;
+    __tagsetControl: (command: string, value?: number) => Promise<boolean>;
   };
   const location = new URL('https://music.youtube.com/browse/artist');
   runInNewContext(
@@ -191,29 +191,29 @@ test('player identity and commands survive navigation away from the watch page',
       },
     },
   );
-  assert.equal(browser.__setwisePlayback.videoId, 'EsAQYAeqxD4');
+  assert.equal(browser.__tagsetPlayback.videoId, 'EsAQYAeqxD4');
   assert.equal(
-    browser.__setwisePlayback.artwork,
+    browser.__tagsetPlayback.artwork,
     'https://lh3.googleusercontent.com/album=w512',
   );
-  assert.equal(browser.__setwisePlayback.loadToken, 'current-request');
-  await browser.__setwiseControl('pause');
+  assert.equal(browser.__tagsetPlayback.loadToken, 'current-request');
+  await browser.__tagsetControl('pause');
   tick();
-  assert.equal(browser.__setwisePlayback.paused, true);
-  await browser.__setwiseControl('play');
-  await browser.__setwiseControl('seek', 45);
-  await browser.__setwiseControl('volume', 35);
+  assert.equal(browser.__tagsetPlayback.paused, true);
+  await browser.__tagsetControl('play');
+  await browser.__tagsetControl('seek', 45);
+  await browser.__tagsetControl('volume', 35);
   assert.deepEqual(calls, ['pause', 'play', ['seek', 45], ['volume', 35]]);
   location.search = '?v=00000000000';
   tick();
-  assert.equal(browser.__setwisePlayback.videoId, 'EsAQYAeqxD4');
+  assert.equal(browser.__tagsetPlayback.videoId, 'EsAQYAeqxD4');
   playingVideoId = 'lmnopqrstuv';
   tick();
-  assert.equal(browser.__setwisePlayback.videoId, 'lmnopqrstuv');
-  await assert.rejects(browser.__setwiseControl('execute'), /Unsupported/);
+  assert.equal(browser.__tagsetPlayback.videoId, 'lmnopqrstuv');
+  await assert.rejects(browser.__tagsetControl('execute'), /Unsupported/);
 });
 
-test('media keys use Setwise navigation even when YouTube replaces its handlers', () => {
+test('media keys use TagSet navigation even when YouTube replaces its handlers', () => {
   const handlers = new Map<string, (() => void) | null>();
   const messages: { type: string; action: string; loadToken: string }[] = [];
   const session = {
@@ -224,8 +224,8 @@ test('media keys use Setwise navigation even when YouTube replaces its handlers'
   let youtubeNext = 0;
   session.setActionHandler('nexttrack', () => youtubeNext++);
   const browser = {
-    __setwiseLoadToken: 'selected-queue-track',
-    setwisePlaybackHost: {
+    __tagsetLoadToken: 'selected-queue-track',
+    tagsetPlaybackHost: {
       report(message: (typeof messages)[number]) {
         if (message.type === 'media-action') messages.push(message);
       },
@@ -282,7 +282,7 @@ test('playback bridge reports song completion without treating ads as queue endi
     paused: false,
   };
   const browser = {} as {
-    __setwisePlayback: {
+    __tagsetPlayback: {
       advertisement: boolean;
       endedVideoId?: string;
       duration: number;
@@ -326,15 +326,15 @@ test('playback bridge reports song completion without treating ads as queue endi
       },
     },
   );
-  assert.equal(browser.__setwisePlayback.advertisement, true);
+  assert.equal(browser.__tagsetPlayback.advertisement, true);
   ended();
   playerState(0);
-  assert.equal(browser.__setwisePlayback.endedVideoId, undefined);
+  assert.equal(browser.__tagsetPlayback.endedVideoId, undefined);
   advertisement = false;
   tick();
   playerState(1);
-  assert.equal(browser.__setwisePlayback.endedVideoId, undefined);
+  assert.equal(browser.__tagsetPlayback.endedVideoId, undefined);
   playerState(0);
-  assert.equal(browser.__setwisePlayback.endedVideoId, 'EsAQYAeqxD4');
-  assert.equal(browser.__setwisePlayback.duration, 255);
+  assert.equal(browser.__tagsetPlayback.endedVideoId, 'EsAQYAeqxD4');
+  assert.equal(browser.__tagsetPlayback.duration, 255);
 });

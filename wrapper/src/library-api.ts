@@ -38,7 +38,7 @@ export class LibraryApi {
         this.previous === null ? undefined : JSON.parse(this.previous),
       );
     }
-    const url = new URL(path, 'https://setwise.local');
+    const url = new URL(path, 'https://tagset.local');
     if (method === 'GET') {
       if (url.pathname === '/library') return this.library.library();
       if (url.pathname === '/library/export')
@@ -69,7 +69,7 @@ export class LibraryApi {
       await this.host.write(data, this.previous);
     } catch (error) {
       this.blocked = new Error(
-        `The library could not be saved: ${error instanceof Error ? error.message : 'Storage failed.'} Reopen Setwise before editing again.`,
+        `The library could not be saved: ${error instanceof Error ? error.message : 'Storage failed.'} Reopen TagSet before editing again.`,
       );
       throw this.blocked;
     }

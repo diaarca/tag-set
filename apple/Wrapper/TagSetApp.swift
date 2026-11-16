@@ -4,7 +4,7 @@ import SwiftUI
 import WebKit
 
 @main
-struct SetwiseWrapperApp: App {
+struct TagSetApp: App {
   var body: some Scene { WindowGroup { WrapperView().preferredColorScheme(.dark) } }
 }
 
@@ -110,7 +110,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
     music.configuration.userContentController.removeAllUserScripts()
     music.configuration.userContentController.addUserScript(
       WKUserScript(
-        source: "window.__setwiseLoadToken = \(encoded); \(bridge)", injectionTime: .atDocumentEnd,
+        source: "window.__tagsetLoadToken = \(encoded); \(bridge)", injectionTime: .atDocumentEnd,
         forMainFrameOnly: true))
   }
 
@@ -176,11 +176,11 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
     default: return
     }
     let script = """
-      if (!window.__setwiseControl) {
+      if (!window.__tagsetControl) {
         if (command === 'pause') return true;
         throw new Error('YouTube Music is still loading. Open YouTube Music if playback needs a prompt.');
       }
-      return await window.__setwiseControl(command, value);
+      return await window.__tagsetControl(command, value);
       """
     Task { @MainActor in
       do {
@@ -200,7 +200,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
     return result
   }
   private func failure(_ message: String) -> NSError {
-    NSError(domain: "Setwise", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+    NSError(domain: "TagSet", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
   }
   private func libraryURL() throws -> URL {
     try FileManager.default.url(
@@ -251,7 +251,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
     case "exportLibrary":
       let data = try libraryData(payload)
       let url = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "setwise-library-\(UUID()).json")
+        "tagset-library-\(UUID()).json")
       try data.write(to: url, options: .atomic)
       let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
       activity.popoverPresentationController?.sourceView = controls
@@ -311,7 +311,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
       let data = try? JSONSerialization.data(withJSONObject: message),
       let json = String(data: data, encoding: .utf8)
     else { return }
-    controls.evaluateJavaScript("window.setwiseReceive?.(\(json))")
+    controls.evaluateJavaScript("window.tagsetReceive?.(\(json))")
   }
   private func report(_ error: String) { publish(["error": error]) }
   private func showStartupError(_ message: String) {

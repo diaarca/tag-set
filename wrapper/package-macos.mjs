@@ -15,7 +15,7 @@ async function build() {
   try {
     const staging = join(work, 'image');
     await mkdir(staging);
-    const app = join(staging, 'Setwise.app');
+    const app = join(staging, 'TagSet.app');
     const runtime = join(work, 'runtime');
     run('/usr/bin/ditto', ['-x', '-k', electronArchive, runtime]);
     await rename(join(runtime, 'Electron.app'), app);
@@ -26,8 +26,8 @@ async function build() {
     await copyApplication(join(resources, 'app'), manifest.version);
     const plist = join(app, 'Contents/Info.plist');
     for (const [key, value] of Object.entries({
-      CFBundleName: 'Setwise',
-      CFBundleDisplayName: 'Setwise',
+      CFBundleName: 'TagSet',
+      CFBundleDisplayName: 'TagSet',
       CFBundleIdentifier: 'dev.dylan.Setwise.Wrapper.desktop',
       CFBundleShortVersionString: manifest.version,
       CFBundleVersion: manifest.version,
@@ -42,11 +42,11 @@ async function build() {
     run('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', app]);
     run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
     await symlink('/Applications', join(staging, 'Applications'));
-    const image = join(work, 'Setwise.dmg');
+    const image = join(work, 'TagSet.dmg');
     run('/usr/bin/hdiutil', [
       'create',
       '-volname',
-      'Setwise',
+      'TagSet',
       '-srcfolder',
       staging,
       '-format',
@@ -54,10 +54,10 @@ async function build() {
       image,
     ]);
     run('/usr/bin/hdiutil', ['verify', image]);
-    const filename = `Setwise-${manifest.version}-${process.arch}.dmg`;
+    const filename = `TagSet-${manifest.version}-${process.arch}.dmg`;
     await rename(image, join(output, filename));
     console.log(
-      `\nCreated ${join(output, filename)}\nOpen the DMG and drag Setwise into Applications.\nThis build is ad-hoc signed and is not notarized.`,
+      `\nCreated ${join(output, filename)}\nOpen the DMG and drag TagSet into Applications.\nThis build is ad-hoc signed and is not notarized.`,
     );
   } finally {
     await rm(work, { recursive: true, force: true });

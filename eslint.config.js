@@ -11,7 +11,7 @@ export default tseslint.config(
       'node_modules/**',
       'data/**',
       '**/.build/**',
-      'apple/SetwiseWrapper.xcodeproj/**',
+      'apple/TagSet.xcodeproj/**',
     ],
   },
   js.configs.recommended,

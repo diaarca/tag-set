@@ -23,7 +23,7 @@ export type HostMessage =
 type Operation = 'readLibrary' | 'writeLibrary' | 'catalog' | 'exportLibrary';
 declare global {
   interface Window {
-    setwiseHost?: {
+    tagsetHost?: {
       send(command: WrapperCommand): void;
       request(operation: Operation, payload?: unknown): Promise<unknown>;
       onMessage(listener: (message: unknown) => void): () => void;
@@ -33,7 +33,7 @@ declare global {
         wrapperCommand?: { postMessage(message: unknown): void };
       };
     };
-    setwiseReceive?: (message: unknown) => void;
+    tagsetReceive?: (message: unknown) => void;
   }
 }
 const listeners = new Set<(message: HostMessage) => void>();
@@ -64,8 +64,8 @@ function receive(value: unknown) {
       listener(message as unknown as HostMessage);
   }
 }
-window.setwiseReceive = receive;
-window.setwiseHost?.onMessage(receive);
+window.tagsetReceive = receive;
+window.tagsetHost?.onMessage(receive);
 
 export function subscribe(listener: (message: HostMessage) => void) {
   listeners.add(listener);
@@ -74,25 +74,25 @@ export function subscribe(listener: (message: HostMessage) => void) {
   };
 }
 export function send(command: WrapperCommand) {
-  if (window.setwiseHost) window.setwiseHost.send(command);
+  if (window.tagsetHost) window.tagsetHost.send(command);
   else if (window.webkit?.messageHandlers.wrapperCommand)
     window.webkit.messageHandlers.wrapperCommand.postMessage(command);
-  else throw new Error('Open Setwise inside its desktop or iPhone wrapper.');
+  else throw new Error('Open TagSet inside its desktop or iPhone wrapper.');
 }
 export async function request(
   operation: Operation,
   payload?: unknown,
 ): Promise<unknown> {
-  if (window.setwiseHost) return window.setwiseHost.request(operation, payload);
+  if (window.tagsetHost) return window.tagsetHost.request(operation, payload);
   const bridge = window.webkit?.messageHandlers.wrapperCommand;
-  if (!bridge) throw new Error('The native Setwise bridge is unavailable.');
+  if (!bridge) throw new Error('The native TagSet bridge is unavailable.');
   const requestId = uniqueToken();
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
       pending.delete(requestId);
       reject(
         new Error(
-          'The device did not complete this operation. Reopen Setwise before editing again.',
+          'The device did not complete this operation. Reopen TagSet before editing again.',
         ),
       );
     }, 120_000);

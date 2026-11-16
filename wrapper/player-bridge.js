@@ -1,7 +1,7 @@
 (() => {
-  if (location.hostname !== 'music.youtube.com' || window.__setwiseBridge)
+  if (location.hostname !== 'music.youtube.com' || window.__tagsetBridge)
     return;
-  window.__setwiseBridge = true;
+  window.__tagsetBridge = true;
   let active;
   let trackedVideoId;
   let endedVideoId;
@@ -23,9 +23,9 @@
           const message = {
             type: 'media-action',
             action: value,
-            loadToken: window.__setwiseLoadToken ?? null,
+            loadToken: window.__tagsetLoadToken ?? null,
           };
-          window.setwisePlaybackHost?.report(message);
+          window.tagsetPlaybackHost?.report(message);
           window.webkit?.messageHandlers.wrapperPlayback?.postMessage(message);
         },
       ]),
@@ -36,7 +36,7 @@
     for (const [action, handler] of Object.entries(handlers))
       session.setActionHandler(action, handler);
   }
-  window.__setwiseControl = async (command, value) => {
+  window.__tagsetControl = async (command, value) => {
     const player = api(),
       element = media();
     switch (command) {
@@ -73,7 +73,7 @@
           value > 100
         )
           throw new Error('Invalid volume.');
-        window.__setwisePreferredVolume = value / 100;
+        window.__tagsetPreferredVolume = value / 100;
         if (typeof player?.setVolume === 'function') player.setVolume(value);
         else if (element) element.volume = value / 100;
         break;
@@ -108,9 +108,9 @@
     if (
       element &&
       !appliedVolume &&
-      typeof window.__setwisePreferredVolume === 'number'
+      typeof window.__tagsetPreferredVolume === 'number'
     ) {
-      element.volume = window.__setwisePreferredVolume;
+      element.volume = window.__tagsetPreferredVolume;
       appliedVolume = true;
     }
     advertisement = !!document.querySelector('.ad-showing');
@@ -129,7 +129,7 @@
     const artwork = globalThis.navigator?.mediaSession?.metadata?.artwork;
     const message = {
       type: 'playback',
-      loadToken: window.__setwiseLoadToken ?? null,
+      loadToken: window.__tagsetLoadToken ?? null,
       artwork: artwork?.length
         ? artwork[artwork.length - 1].src
         : (document.querySelector('ytmusic-player-bar img')?.currentSrc ??
@@ -147,8 +147,8 @@
       position: Number.isFinite(element?.currentTime) ? element.currentTime : 0,
       duration: Number.isFinite(element?.duration) ? element.duration : 0,
     };
-    window.__setwisePlayback = message;
-    window.setwisePlaybackHost?.report(message);
+    window.__tagsetPlayback = message;
+    window.tagsetPlaybackHost?.report(message);
     window.webkit?.messageHandlers.wrapperPlayback?.postMessage(message);
   };
   setInterval(send, 500);

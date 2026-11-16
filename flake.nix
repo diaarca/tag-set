@@ -1,5 +1,5 @@
 {
-  description = "Setwise YouTube Music wrapper";
+  description = "TagSet YouTube Music wrapper";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   outputs = { self, nixpkgs }:
     let
@@ -17,12 +17,12 @@
           command = name: inputs: script: arguments: {
             type = "app";
             program = "${pkgs.writeShellApplication {
-              name = "setwise-${name}";
+              name = "tagset-${name}";
               runtimeInputs = [ pkgs.nodejs_24 ] ++ inputs;
               text = ''
                 exec node ${pkgs.lib.escapeShellArg script} ${pkgs.lib.escapeShellArgs arguments} "$@"
               '';
-            }}/bin/setwise-${name}";
+            }}/bin/tagset-${name}";
           };
         in {
           windows = command "windows" [ pkgs.unzip pkgs.nsis ] "wrapper/package-desktop.mjs" [ "windows-x64" "${windowsRuntime}" ];

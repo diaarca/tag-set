@@ -54,7 +54,7 @@ app.whenReady().then(async () => {
     contents.close();
     window.destroy();
     console.log(
-      'Passed: blocked navigation reproduced; consecutive Setwise skips succeed; ordinary navigation stays protected.',
+      'Passed: blocked navigation reproduced; consecutive TagSet skips succeed; ordinary navigation stays protected.',
     );
     clearTimeout(timeout);
     app.quit();

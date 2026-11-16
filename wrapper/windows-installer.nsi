@@ -2,9 +2,10 @@ Unicode true
 RequestExecutionLevel user
 !include "MUI2.nsh"
 
-Name "Setwise"
+Name "TagSet"
 OutFile "${OUTPUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\Setwise"
+InstallDir "$LOCALAPPDATA\Programs\TagSet"
+; Keep the installation identity so existing installs are upgraded.
 InstallDirRegKey HKCU "Software\Setwise" "InstallDir"
 SetCompressor /SOLID lzma
 
@@ -19,10 +20,12 @@ Section "Install"
   SetShellVarContext current
   SetOutPath "$INSTDIR"
   File /r "${SOURCE_DIR}/*"
+  Delete "$INSTDIR\Setwise.exe"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  CreateShortcut "$SMPROGRAMS\Setwise.lnk" "$INSTDIR\Setwise.exe"
+  Delete "$SMPROGRAMS\Setwise.lnk"
+  CreateShortcut "$SMPROGRAMS\TagSet.lnk" "$INSTDIR\TagSet.exe"
   WriteRegStr HKCU "Software\Setwise" "InstallDir" "$INSTDIR"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "DisplayName" "Setwise"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "DisplayName" "TagSet"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "NoModify" 1
@@ -33,8 +36,9 @@ Section "Uninstall"
   SetShellVarContext current
   !include "${UNINSTALL_FILES}"
   Delete "$INSTDIR\Uninstall.exe"
+  Delete "$INSTDIR\Setwise.exe"
   RMDir "$INSTDIR"
-  Delete "$SMPROGRAMS\Setwise.lnk"
+  Delete "$SMPROGRAMS\TagSet.lnk"
   DeleteRegKey HKCU "Software\Setwise"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise"
 SectionEnd

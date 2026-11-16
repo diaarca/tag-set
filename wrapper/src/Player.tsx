@@ -17,7 +17,7 @@ export interface PlayerHandle {
   remove(id: number): void;
 }
 
-const { artworkURL } = globalThis.setwiseProtocol;
+const { artworkURL } = globalThis.tagsetProtocol;
 
 const time = (value: number) => {
   const seconds = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
@@ -215,7 +215,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     return () => window.clearTimeout(timer);
   }, [loading, playback.advertisement, videoId, queue.revision]);
   useEffect(() => {
-    if (window.setwiseHost) send({ type: 'volume', value: volume });
+    if (window.tagsetHost) send({ type: 'volume', value: volume });
   }, [volume]);
   useEffect(() => {
     const element = surface.current;
@@ -378,7 +378,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
       {websiteOpen && (
         <p className="field-note">
           Use this view for sign-in, consent, or playback prompts. Close it to
-          return control to Setwise.
+          return control to TagSet.
         </p>
       )}
       <div
@@ -457,7 +457,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
           {queue.repeat === 'one' ? '↻₁' : '↻'}
         </button>
       </div>
-      {window.setwiseHost && (
+      {window.tagsetHost && (
         <label className="volume-row">
           Volume
           <input
