@@ -2,6 +2,12 @@
   "name": "tag-set",
   "version": "0.1.0",
   "private": true,
+  "description": "A local music player with inherited tag playlists and YouTube Music playback.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diaarca/tag-set.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -13,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts tests/*.test.mjs",
+    "security": "node scripts/check-repository.mjs && npm audit --audit-level=high",
     "test:desktop": "electron tests/navigation.electron.mjs && electron tests/interface.electron.mjs"
   },
   "dependencies": {

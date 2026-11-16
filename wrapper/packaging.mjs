@@ -43,11 +43,31 @@ export async function copyApplication(destination, version) {
       2,
     ) + '\n',
   );
-  await cp('wrapper/bundle', join(destination, 'bundle'), { recursive: true });
-  await cp('wrapper/desktop', join(destination, 'desktop'), {
-    recursive: true,
-    filter: (path) => !path.endsWith('.d.mts'),
-  });
+  // Package only runtime files, including when ignored local files exist nearby.
+  for (const [directory, files] of [
+    [
+      'bundle',
+      ['index.html', 'app.js', 'style.css', 'LICENSE.txt', 'NOTICE.txt'],
+    ],
+    [
+      'desktop',
+      [
+        'main.mjs',
+        'catalog.mjs',
+        'storage.mjs',
+        'navigation.mjs',
+        'preload.cjs',
+        'playback-preload.cjs',
+      ],
+    ],
+  ]) {
+    await mkdir(join(destination, directory), { recursive: true });
+    for (const file of files)
+      await cp(
+        join('wrapper', directory, file),
+        join(destination, directory, file),
+      );
+  }
   await cp('wrapper/protocol.js', join(destination, 'protocol.js'));
   await cp('wrapper/player-bridge.js', join(destination, 'player-bridge.js'));
 }

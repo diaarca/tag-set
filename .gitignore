@@ -1,14 +1,53 @@
 node_modules/
 dist/
 data/
-.env
+backups/
+exports/
+credentials*.json
+client_secret*.json
+headers_auth.json
+cookies*.txt
+cookies*.json
+.direnv/
+.env*
+!.env.example
+.todo
 *.log
+*.har
+*.key
+*.pem
+*.p8
+*.p12
+*.pfx
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.keychain*
+*.keystore
+*.jks
+*.sqlite*
+*.db
+*.db-*
+library.json
+*-library*.json
+Cookies*
+Login Data*
+Local State
+Session Storage/
+Local Storage/
 .DS_Store
 coverage/
 result
 .build/
 DerivedData/
 xcuserdata/
-apple/TagSet.xcodeproj/
-apple/Config/Signing.local.xcconfig
+*.xcuserstate
+*.xcarchive/
+*.app/
+*.ipa
+*.dmg
+*.exe
+*.tar.gz
+apple/*.xcodeproj/
+apple/Config/Signing.local*
 wrapper/bundle/

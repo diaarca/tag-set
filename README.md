@@ -7,18 +7,21 @@ Songs inherit artist tags. Parent tags include their descendants' songs, without
 ## Run
 
 ```sh
+git clone https://github.com/diaarca/tag-set.git
+cd tag-set
 nix develop
 npm ci
 npm start
 ```
 
-Direnv loads the same environment automatically. Nix provides Node.js, Electron, and XcodeGen on macOS. Quit fully with **Command-Q** before relaunching changes on Mac.
+Direnv loads the same environment automatically. Nix provides Node.js, Electron, Gitleaks, and XcodeGen on macOS. Quit fully with **Command-Q** before relaunching changes on Mac.
 
 | Command                 | Usage                                                                              |
 | ----------------------- | ---------------------------------------------------------------------------------- |
 | `npm start`             | Build and launch the desktop app.                                                  |
 | `npm run build`         | Build the shared interface into `wrapper/bundle`.                                  |
 | `npm run check`         | Check types, lint, formatting, tests, and build.                                   |
+| `npm run security`      | Scan repository files/history for secrets and audit npm dependencies.              |
 | `npm run test:desktop`  | Run isolated Electron navigation and interface checks; requires a desktop session. |
 | `nix run .#dmg`         | Build an Apple Silicon macOS disk image.                                           |
 | `nix run .#windows`     | Build a Windows x64 installer.                                                     |
@@ -56,3 +59,9 @@ Libraries remain on each device: `Setwise Wrapper/library.json` in Electron's ap
 YouTube Music stays hidden behind the player. **Open YouTube Music** provides sign-in and playback prompts. Playback and catalog access require internet; the unofficial integration may need updates when YouTube changes. Hiding the website does not guarantee audio-only downloads or background playback.
 
 macOS playback and signed iPhone installation have been verified. Windows/Linux runtime behavior and iPhone background playback still need device testing. Desktop packages have no distribution signing or notarization, so downloaded copies may trigger OS security prompts.
+
+## Contributing and license
+
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report vulnerabilities privately through [SECURITY.md](SECURITY.md). Never share cookies, personal libraries, HAR files, or signing files.
+
+TagSet's code is [MIT licensed](LICENSE). [NOTICE](NOTICE) covers bundled dependencies and third-party media; TagSet is not affiliated with YouTube or Google.
