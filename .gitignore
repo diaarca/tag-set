@@ -12,6 +12,7 @@ cookies*.json
 .env*
 !.env.example
 .todo
+/todo.md
 *.log
 *.har
 *.key

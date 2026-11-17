@@ -14,6 +14,18 @@
 body {
   margin: 0;
 }
+:root,
+.tag-navigation,
+.player-panel,
+.queue-list {
+  scrollbar-width: none;
+}
+:root::-webkit-scrollbar,
+.tag-navigation::-webkit-scrollbar,
+.player-panel::-webkit-scrollbar,
+.queue-list::-webkit-scrollbar {
+  display: none;
+}
 button,
 input,
 textarea,
