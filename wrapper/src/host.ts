@@ -31,7 +31,12 @@ type Operation =
   | 'saveGitHubToken'
   | 'removeGitHubToken'
   | 'githubPull'
-  | 'githubPush';
+  | 'githubPush'
+  | 'libraryLocation'
+  | 'chooseLibraryFolder'
+  | 'defaultLibraryFolder'
+  | 'cancelLibraryLocation'
+  | 'activateLibraryLocation';
 declare global {
   interface Window {
     tagsetHost?: {
@@ -99,14 +104,17 @@ export async function request(
   if (!bridge) throw new Error('The native TagSet bridge is unavailable.');
   const requestId = uniqueToken();
   return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      pending.delete(requestId);
-      reject(
-        new Error(
-          'The device did not complete this operation. Reopen TagSet before editing again.',
-        ),
-      );
-    }, 120_000);
+    const timer =
+      operation === 'chooseLibraryFolder'
+        ? undefined
+        : window.setTimeout(() => {
+            pending.delete(requestId);
+            reject(
+              new Error(
+                'The device did not complete this operation. Reopen TagSet before editing again.',
+              ),
+            );
+          }, 120_000);
     pending.set(requestId, {
       resolve(value) {
         window.clearTimeout(timer);

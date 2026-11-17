@@ -15,7 +15,7 @@ import { createGitHubClient } from './github.mjs';
 import '../protocol.js';
 import {
   atomicWrite,
-  createLibraryStorage,
+  createLibraryLocationStorage,
   createPreferencesStorage,
   libraryText,
 } from './storage.mjs';
@@ -145,8 +145,9 @@ function openMusic(url) {
 }
 
 function createWindow() {
-  storage ??= createLibraryStorage(
+  storage ??= createLibraryLocationStorage(
     join(app.getPath('userData'), 'library.json'),
+    join(app.getPath('userData'), 'library-location.json'),
   );
   window = new BrowserWindow({
     title: 'TagSet',
@@ -262,6 +263,28 @@ ipcMain.handle('wrapper-request', async (event, operation, payload) => {
   if (!trusted(event))
     throw new Error('Only the local TagSet interface can access its library.');
   switch (operation) {
+    case 'libraryLocation':
+      return storage.location();
+    case 'chooseLibraryFolder': {
+      const result = await dialog.showOpenDialog(window, {
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled || !result.filePaths[0]) return null;
+      return storage.prepare(result.filePaths[0]);
+    }
+    case 'defaultLibraryFolder':
+      return storage.prepare(null);
+    case 'cancelLibraryLocation':
+      await storage.cancel();
+      return null;
+    case 'activateLibraryLocation':
+      if (
+        !payload ||
+        typeof payload !== 'object' ||
+        typeof payload.token !== 'string'
+      )
+        throw new Error('Invalid library location request.');
+      return storage.activate(payload.token, payload.data, payload.previous);
     case 'hasGitHubToken':
       return (await readGitHubToken()) !== null;
     case 'saveGitHubToken': {

@@ -1,4 +1,47 @@
 export const french: Record<string, string> = {
+  'The library changed outside TagSet. Reload it before exporting or sharing.':
+    'La bibliothèque a changé en dehors de TagSet. Rechargez-la avant de l’exporter ou de la partager.',
+  'Choose an existing library folder.':
+    'Choisissez un dossier de bibliothèque existant.',
+  'Invalid saved library location.':
+    'L’emplacement enregistré de la bibliothèque est invalide.',
+  'Invalid library location request.':
+    'La demande de changement d’emplacement est invalide.',
+  'The library could not be read.': 'La bibliothèque n’a pas pu être lue.',
+  'The library could not be saved.':
+    'La bibliothèque n’a pas pu être enregistrée.',
+  'The library changed in another window.':
+    'La bibliothèque a changé dans une autre fenêtre.',
+  'The device returned an invalid library.':
+    'L’appareil a renvoyé une bibliothèque invalide.',
+  'Library folder': 'Dossier de la bibliothèque',
+  'Choose a local or cloud-synced folder. TagSet reads and writes library.json there; settings and credentials stay on this device. GitHub pull and push use the selected library.':
+    'Choisissez un dossier local ou synchronisé dans le cloud. TagSet y lit et écrit library.json ; les paramètres et identifiants restent sur cet appareil. Les opérations GitHub utilisent la bibliothèque sélectionnée.',
+  'Choose library folder': 'Choisir le dossier de la bibliothèque',
+  'Use default folder': 'Utiliser le dossier par défaut',
+  'Reload library': 'Recharger la bibliothèque',
+  'A library already exists in this folder. Replace the current library with it? The previous file will be kept in its original folder.':
+    'Une bibliothèque existe déjà dans ce dossier. Remplacer la bibliothèque actuelle par celle-ci ? Le fichier précédent sera conservé dans son dossier d’origine.',
+  'Replace current library': 'Remplacer la bibliothèque actuelle',
+  Cancel: 'Annuler',
+  'Wait for your cloud provider to finish syncing before opening another device. Reload to read external changes; avoid editing on two devices at once.':
+    'Attendez la fin de la synchronisation cloud avant d’ouvrir un autre appareil. Rechargez pour lire les modifications externes ; évitez de modifier la bibliothèque sur deux appareils à la fois.',
+  'Library folder updated.': 'Dossier de la bibliothèque mis à jour.',
+  'Library reloaded.': 'Bibliothèque rechargée.',
+  'The library folder could not be changed.':
+    'Le dossier de la bibliothèque n’a pas pu être modifié.',
+  'The selected library is unavailable. Restore access or choose another folder.':
+    'La bibliothèque sélectionnée est indisponible. Rétablissez l’accès ou choisissez un autre dossier.',
+  'Choose the library folder again.':
+    'Choisissez à nouveau le dossier de la bibliothèque.',
+  'The folder library changed. Choose the folder again.':
+    'La bibliothèque du dossier a changé. Choisissez à nouveau le dossier.',
+  'The current library changed. Reload it before switching folders.':
+    'La bibliothèque actuelle a changé. Rechargez-la avant de changer de dossier.',
+  'The selected folder cannot be accessed. Choose it again.':
+    'Le dossier sélectionné est inaccessible. Choisissez-le à nouveau.',
+  'Close the current native dialog before choosing a folder.':
+    'Fermez la fenêtre native actuelle avant de choisir un dossier.',
   'Library visibility': 'Affichage de la bibliothèque',
   'Minimum songs for unpinned artist tags':
     'Nombre minimum de morceaux pour les tags d’artistes non épinglés',

@@ -6,7 +6,9 @@ Never attach passwords, cookies, tokens, raw HAR files, personal library exports
 
 ## Trust and storage
 
-TagSet runs locally without a project-operated server or automatic library synchronization. Libraries and exports contain listening preferences and tags; they are JSON, not encrypted backups. YouTube Music runs separately from the local interface, with persistent Google sign-in data managed by Electron or WebKit. Catalog requests and playback contact Google; cover images contact their image hosts.
+TagSet runs locally without a project-operated server. Libraries and exports contain listening preferences and tags; they are JSON, not encrypted backups. A folder selected in Settings may be synced by its cloud provider. Only the library file is placed there; credentials and preferences remain in private device storage. Native folder pickers grant access, with security-scoped bookmarks and coordinated file access on iOS. Changes detected before writing are rejected; avoid simultaneous edits because cloud-provider conflicts are not merged automatically.
+
+YouTube Music runs separately from the local interface, with persistent Google sign-in data managed by Electron or WebKit. Catalog requests and playback contact Google; cover images contact their image hosts.
 
 Desktop remote content runs sandboxed with Node.js disabled and context isolation enabled. Native library operations are restricted to the bundled interface. Preserve those boundaries, URL restrictions, and library validation when contributing.
 

@@ -941,6 +941,9 @@ textarea {
 .settings-button {
   margin-top: 12px;
 }
+.library-path {
+  overflow-wrap: anywhere;
+}
 .setting-toggle {
   display: flex;
   align-items: center;

@@ -21,6 +21,7 @@ export function App() {
   const [songSearch, setSongSearch] = useState('');
   const [editor, setEditor] = useState<Editor>();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [libraryVersion, setLibraryVersion] = useState(0);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -502,7 +503,16 @@ export function App() {
       <Player ref={player} />
       {settingsOpen && (
         <Modal title={t('Settings')} onClose={() => setSettingsOpen(false)}>
-          <Settings onImported={refresh} />
+          <Settings
+            onImported={refresh}
+            libraryVersion={libraryVersion}
+            onLibraryChanged={() => {
+              player.current?.start([]);
+              chooseTag(null);
+              refresh();
+              setLibraryVersion((value) => value + 1);
+            }}
+          />
         </Modal>
       )}
       {editor && (

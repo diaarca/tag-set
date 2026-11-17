@@ -1,7 +1,16 @@
 import { usePreferences, useTranslation } from './Preferences';
 import { GitHubSharing } from './GitHubSharing';
+import { LibraryLocation } from './LibraryLocation';
 
-export function Settings({ onImported }: { onImported(): void }) {
+export function Settings({
+  onImported,
+  onLibraryChanged,
+  libraryVersion,
+}: {
+  onImported(): void;
+  onLibraryChanged(): void;
+  libraryVersion: number;
+}) {
   const { t } = useTranslation();
   const { preferences, busy, error, save } = usePreferences();
   return (
@@ -89,8 +98,9 @@ export function Settings({ onImported }: { onImported(): void }) {
           </fieldset>
         </form>
       </section>
+      <LibraryLocation onChanged={onLibraryChanged} />
       <GitHubSharing
-        key={`${preferences.githubRepository}/${preferences.githubBranch}`}
+        key={`${preferences.githubRepository}/${preferences.githubBranch}/${libraryVersion}`}
         onImported={onImported}
       />
       {error && (

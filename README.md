@@ -56,13 +56,17 @@ Open **Settings** in the sidebar. Choose English (default) or French for the int
 
 Set a minimum song count to hide small artist tags from the sidebar. The default `0` shows all tags; pinned and created tags are always shown. Hidden tags remain available in editors.
 
+**Library folder** selects where `library.json` is stored. Choose a local folder or one synced by iCloud Drive or another file provider; on iOS, use the Files picker. An empty folder receives a copy of your current library. An existing library requires **Replace current library** or **Cancel**; the previous file stays in its original folder. Switching stops playback and makes GitHub sharing use the selected library. **Use default folder** returns to device storage using the same confirmation flow.
+
+Choose the folder separately on each device. Wait for the provider to finish syncing, then use **Reload library** or reopen TagSet to read external changes. Avoid simultaneous edits: cloud-provider conflicts are not merged automatically. Settings and credentials stay private on each device.
+
 For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. Use **Pull from GitHub** before **Push to GitHub**, including before the first push to an empty library repository. A private repository keeps your library private. No Git installation is needed.
 
-Pull merges additions and preserves local edits; deletions do not propagate. Push writes `tagset-library.json` and rejects unseen remote changes. Tokens are stored using the desktop system keychain or iOS Keychain, separately from library exports; Linux requires an available system keyring. Sharing is manual, and iCloud storage is not implemented.
+Pull merges additions and preserves local edits; deletions do not propagate. Push writes `tagset-library.json` and rejects unseen remote changes. Tokens are stored using the desktop system keychain or iOS Keychain, separately from library exports; Linux requires an available system keyring. GitHub sharing is manual.
 
 ## Data and limits
 
-Libraries remain on each device: `Setwise Wrapper/library.json` in Electron's application-data directory, or `SetwiseWrapper/library.json` in iOS Application Support. Legacy storage/encryption identities and Apple bundle IDs are retained to preserve libraries and sign-in through the rename. Use **Export library** for backups and transfer. Automatic synchronization and offline music downloads are not implemented.
+Default libraries use `Setwise Wrapper/library.json` in Electron's application-data directory, or `SetwiseWrapper/library.json` in iOS Application Support. Settings can select another folder. Legacy storage/encryption identities and Apple bundle IDs are retained to preserve libraries and sign-in through the rename. Use **Export library** for backups and transfer. Offline music downloads are not implemented.
 
 YouTube Music stays hidden behind the player. **Open YouTube Music** provides sign-in and playback prompts. Playback and catalog access require internet; the unofficial integration may need updates when YouTube changes. Hiding the website does not guarantee audio-only downloads or background playback.
 

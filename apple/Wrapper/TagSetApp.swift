@@ -2,6 +2,7 @@ import AVFoundation
 import CoreFoundation
 import Security
 import SwiftUI
+import UniformTypeIdentifiers
 import WebKit
 
 @main
@@ -29,8 +30,94 @@ private final class GitHubRedirectGuard: NSObject, URLSessionTaskDelegate {
   ) { completionHandler(nil) }
 }
 
+private final class ScopedLibraryFolder {
+  let url: URL
+  let bookmark: Data
+  init(_ url: URL) throws {
+    guard url.startAccessingSecurityScopedResource() else {
+      throw NSError(
+        domain: "TagSet", code: 1,
+        userInfo: [
+          NSLocalizedDescriptionKey: "The selected folder cannot be accessed. Choose it again."
+        ])
+    }
+    self.url = url
+    do {
+      bookmark = try url.bookmarkData(
+        options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
+    } catch {
+      url.stopAccessingSecurityScopedResource()
+      throw error
+    }
+  }
+  deinit { url.stopAccessingSecurityScopedResource() }
+}
+
+private enum LibraryFiles {
+  static func failure(_ message: String) -> NSError {
+    NSError(domain: "TagSet", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+  }
+  static func missing(_ error: Error) -> Bool {
+    let error = error as NSError
+    return error.domain == NSCocoaErrorDomain
+      && [NSFileReadNoSuchFileError, NSFileNoSuchFileError].contains(error.code)
+  }
+  static func readFile(_ url: URL) throws -> String? {
+    do {
+      let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+      guard ((attributes[.size] as? NSNumber)?.intValue ?? Int.max) <= 8 * 1024 * 1024 else {
+        throw failure("The library is larger than 8 MiB.")
+      }
+      let data = try Data(contentsOf: url)
+      guard let text = String(data: data, encoding: .utf8) else {
+        throw failure("The library is not valid UTF-8. Its file has not been changed.")
+      }
+      return text
+    } catch {
+      if missing(error) { return nil }
+      throw error
+    }
+  }
+  static func read(_ url: URL) async throws -> String? {
+    try await Task.detached {
+      var error: NSError?
+      var result: Result<String?, Error>?
+      NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &error) { target in
+        result = Result { try readFile(target) }
+      }
+      if let error {
+        if missing(error) { return nil }
+        throw error
+      }
+      guard let result else { throw failure("The library could not be read.") }
+      return try result.get()
+    }.value
+  }
+  static func write(_ url: URL, data: Data, previous: String?, requireExisting: Bool) async throws {
+    try await Task.detached {
+      var error: NSError?
+      var result: Result<Void, Error>?
+      NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &error) {
+        target in
+        result = Result {
+          let current = try readFile(target)
+          if requireExisting && current == nil {
+            throw failure(
+              "The selected library is unavailable. Restore access or choose another folder.")
+          }
+          guard current == previous else { throw failure("The library changed in another window.") }
+          try data.write(to: target, options: .atomic)
+        }
+      }
+      if let error { throw error }
+      guard let result else { throw failure("The library could not be saved.") }
+      try result.get()
+    }.value
+  }
+}
+
 private final class WrapperController: UIViewController, WKNavigationDelegate, WKUIDelegate,
-  UIAdaptivePresentationControllerDelegate
+  UIAdaptivePresentationControllerDelegate, UIDocumentPickerDelegate
 {
   private let controls = WKWebView()
   private let music: WKWebView = {
@@ -47,6 +134,10 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
   private var bridge = ""
   private var musicRect: CGRect?
   private var popups: [WKWebView: UIViewController] = [:]
+  private var activeFolder: ScopedLibraryFolder?
+  private var locationLoaded = false
+  private var folderContinuation: CheckedContinuation<URL?, Error>?
+  private var pendingFolder: (token: String, folder: ScopedLibraryFolder?, url: URL, data: String?)?
   private static let maxLibraryBytes = 8 * 1024 * 1024
   private static let hosts: Set<String> = [
     "music.youtube.com", "www.youtube.com", "accounts.google.com", "accounts.youtube.com",
@@ -211,24 +302,107 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
   private func failure(_ message: String) -> NSError {
     NSError(domain: "TagSet", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
   }
-  private func libraryURL() throws -> URL {
+  private func defaultLibraryURL() throws -> URL {
     try FileManager.default.url(
       for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
     )
     .appendingPathComponent("SetwiseWrapper/library.json")
   }
-  private func readLibrary() throws -> String? {
-    let url = try libraryURL()
-    guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-    guard ((attributes[.size] as? NSNumber)?.intValue ?? Int.max) <= Self.maxLibraryBytes else {
-      throw failure("The library is larger than 8 MiB.")
+  private func libraryURL() throws -> URL {
+    if !locationLoaded {
+      if let data = UserDefaults.standard.data(forKey: "libraryFolderBookmark") {
+        var stale = false
+        let url = try URL(
+          resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+        let folder = try ScopedLibraryFolder(url)
+        if stale { UserDefaults.standard.set(folder.bookmark, forKey: "libraryFolderBookmark") }
+        activeFolder = folder
+      }
+      locationLoaded = true
     }
-    let data = try Data(contentsOf: url)
-    guard let text = String(data: data, encoding: .utf8) else {
-      throw failure("The library is not valid UTF-8. Its file has not been changed.")
+    return try activeFolder?.url.appendingPathComponent("library.json") ?? defaultLibraryURL()
+  }
+  private func readLibrary() async throws -> String? {
+    let data = try await LibraryFiles.read(libraryURL())
+    if activeFolder != nil && data == nil {
+      throw failure("The selected library is unavailable. Restore access or choose another folder.")
     }
-    return text
+    return data
+  }
+  private func libraryLocation() throws -> [String: Any] {
+    ["path": try libraryURL().path, "isDefault": activeFolder == nil]
+  }
+  private func prepareLibraryFolder(_ folder: ScopedLibraryFolder?) async throws -> [String: Any] {
+    pendingFolder = nil
+    let url = try folder?.url.appendingPathComponent("library.json") ?? defaultLibraryURL()
+    let data = try await LibraryFiles.read(url)
+    if let data { _ = try libraryData(data) }
+    let token = UUID().uuidString
+    pendingFolder = (token, folder, url, data)
+    return ["token": token, "path": url.path, "data": data as Any? ?? NSNull()]
+  }
+  private func chooseLibraryFolder() async throws -> Any? {
+    guard folderContinuation == nil, presentedViewController == nil else {
+      throw failure("Close the current native dialog before choosing a folder.")
+    }
+    pendingFolder = nil
+    let url: URL? = try await withCheckedThrowingContinuation { continuation in
+      folderContinuation = continuation
+      let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+      picker.delegate = self
+      picker.allowsMultipleSelection = false
+      present(picker, animated: true)
+      picker.presentationController?.delegate = self
+    }
+    guard let url else { return nil }
+    return try await prepareLibraryFolder(ScopedLibraryFolder(url))
+  }
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL])
+  {
+    folderContinuation?.resume(returning: urls.first)
+    folderContinuation = nil
+  }
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    folderContinuation?.resume(returning: nil)
+    folderContinuation = nil
+  }
+  private func activateLibraryLocation(_ value: Any?) async throws -> String {
+    guard let input = value as? [String: Any], let token = input["token"] as? String,
+      let selected = pendingFolder, selected.token == token
+    else { throw failure("Choose the library folder again.") }
+    guard try await LibraryFiles.read(selected.url) == selected.data else {
+      throw failure("The folder library changed. Choose the folder again.")
+    }
+    let data: String
+    if let existing = selected.data {
+      data = existing
+    } else {
+      guard input["previous"] is NSNull || input["previous"] is String else {
+        throw failure("Invalid library write.")
+      }
+      guard try await readLibrary() == input["previous"] as? String else {
+        throw failure("The current library changed. Reload it before switching folders.")
+      }
+      let bytes = try libraryData(input["data"])
+      guard let text = String(data: bytes, encoding: .utf8) else {
+        throw failure("Invalid library data.")
+      }
+      data = text
+      if selected.folder == nil {
+        try FileManager.default.createDirectory(
+          at: selected.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+      }
+      try await LibraryFiles.write(selected.url, data: bytes, previous: nil, requireExisting: false)
+    }
+    if let folder = selected.folder {
+      UserDefaults.standard.set(folder.bookmark, forKey: "libraryFolderBookmark")
+    } else {
+      UserDefaults.standard.removeObject(forKey: "libraryFolderBookmark")
+    }
+    activeFolder = selected.folder
+    locationLoaded = true
+    pendingFolder = nil
+    return data
   }
   private func libraryData(_ value: Any?) throws -> Data {
     guard let string = value as? String, let data = string.data(using: .utf8),
@@ -277,19 +451,27 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
       }
       UserDefaults.standard.set(value, forKey: "preferences")
       return nil
-    case "readLibrary": return try readLibrary()
+    case "libraryLocation": return try libraryLocation()
+    case "chooseLibraryFolder": return try await chooseLibraryFolder()
+    case "defaultLibraryFolder": return try await prepareLibraryFolder(nil)
+    case "cancelLibraryLocation":
+      pendingFolder = nil
+      return nil
+    case "activateLibraryLocation": return try await activateLibraryLocation(payload)
+    case "readLibrary": return try await readLibrary()
     case "writeLibrary":
       guard let input = payload as? [String: Any],
         input["previous"] is NSNull || input["previous"] is String
       else { throw failure("Invalid library write.") }
       let data = try libraryData(input["data"])
-      guard try readLibrary() == input["previous"] as? String else {
-        throw failure("The library changed in another window.")
-      }
       let url = try libraryURL()
-      try FileManager.default.createDirectory(
-        at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-      try data.write(to: url, options: .atomic)
+      if activeFolder == nil {
+        try FileManager.default.createDirectory(
+          at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+      }
+      try await LibraryFiles.write(
+        url, data: data, previous: input["previous"] as? String,
+        requireExisting: activeFolder != nil)
       return nil
     case "catalog": return try await catalog(payload)
     case "exportLibrary":
@@ -527,6 +709,10 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
     popups.removeValue(forKey: webView)?.dismiss(animated: true)
   }
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    if presentationController.presentedViewController is UIDocumentPickerViewController {
+      folderContinuation?.resume(returning: nil)
+      folderContinuation = nil
+    }
     if let entry = popups.first(where: {
       $0.value === presentationController.presentedViewController
     }) {

@@ -13,6 +13,16 @@ const local = new LibraryApi(
     async write(data, previous) {
       await request('writeLibrary', { data, previous });
     },
+    async activateLocation(token, data, previous) {
+      const value = await request('activateLibraryLocation', {
+        token,
+        data,
+        previous,
+      });
+      if (typeof value !== 'string')
+        throw new Error('The device returned an invalid library.');
+      return value;
+    },
   },
   new MusicCatalog((endpoint, body) => request('catalog', { endpoint, body })),
 );
