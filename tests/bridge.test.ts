@@ -130,10 +130,15 @@ test('player identity and commands survive navigation away from the watch page',
   let tick = () => {};
   const calls: unknown[] = [];
   let playingVideoId = 'EsAQYAeqxD4';
+  let loudnessDb: number | undefined = 6;
   const media = { currentTime: 12, duration: 255, paused: false, volume: 0.7 };
   const player = {
     getPlayerState: () => 1,
     getVideoData: () => ({ video_id: playingVideoId }),
+    getPlayerResponse: () => ({
+      videoDetails: { videoId: playingVideoId },
+      playerConfig: { audioConfig: { loudnessDb } },
+    }),
     querySelector: () => media,
     addEventListener: () => {},
     playVideo: () => {
@@ -161,7 +166,10 @@ test('player identity and commands survive navigation away from the watch page',
       loadToken: string;
       paused: boolean;
     };
-    __tagsetControl: (command: string, value?: number) => Promise<boolean>;
+    __tagsetControl: (
+      command: string,
+      value?: number | boolean,
+    ) => Promise<boolean>;
   };
   const location = new URL('https://music.youtube.com/browse/artist');
   runInNewContext(
@@ -204,6 +212,20 @@ test('player identity and commands survive navigation away from the watch page',
   await browser.__tagsetControl('seek', 45);
   await browser.__tagsetControl('volume', 35);
   assert.deepEqual(calls, ['pause', 'play', ['seek', 45], ['volume', 35]]);
+  await browser.__tagsetControl('normalization', true);
+  assert.ok(Math.abs(media.volume - 0.35 * 10 ** (-6 / 20)) < 0.001);
+  tick();
+  assert.ok(Math.abs(media.volume - 0.35 * 10 ** (-6 / 20)) < 0.001);
+  loudnessDb = -4;
+  tick();
+  assert.equal(media.volume, 0.35);
+  loudnessDb = undefined;
+  tick();
+  assert.equal(media.volume, 0.35);
+  loudnessDb = 6;
+  tick();
+  await browser.__tagsetControl('normalization', false);
+  assert.equal(media.volume, 0.35);
   location.search = '?v=00000000000';
   tick();
   assert.equal(browser.__tagsetPlayback.videoId, 'EsAQYAeqxD4');

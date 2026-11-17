@@ -20,7 +20,13 @@ export type HostMessage =
       loadToken: string | null;
     }
   | { type?: 'error'; error: string };
-type Operation = 'readLibrary' | 'writeLibrary' | 'catalog' | 'exportLibrary';
+type Operation =
+  | 'readLibrary'
+  | 'writeLibrary'
+  | 'catalog'
+  | 'exportLibrary'
+  | 'readPreferences'
+  | 'writePreferences';
 declare global {
   interface Window {
     tagsetHost?: {

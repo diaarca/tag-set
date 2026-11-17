@@ -1,9 +1,23 @@
 (() => {
+  function validatePreferences(value) {
+    if (value === null) return { version: 1, normalizeVolume: false };
+    if (
+      !value ||
+      value.version !== 1 ||
+      typeof value.normalizeVolume !== 'boolean'
+    )
+      throw new Error(
+        'Invalid settings. The saved settings have not been changed.',
+      );
+    return { version: 1, normalizeVolume: value.normalizeVolume };
+  }
   function validateCommand(value) {
     if (!value || typeof value !== 'object')
       throw new Error('Invalid command.');
     if (value.type === 'play' || value.type === 'pause')
       return { type: value.type };
+    if (value.type === 'normalization' && typeof value.enabled === 'boolean')
+      return { type: value.type, enabled: value.enabled };
     if (
       (value.type === 'seek' || value.type === 'volume') &&
       typeof value.value === 'number' &&
@@ -100,5 +114,6 @@
     validateCommand,
     allowedNavigation,
     artworkURL,
+    validatePreferences,
   });
 })();

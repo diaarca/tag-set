@@ -26,7 +26,9 @@ app.whenReady().then(async () => {
         origin: 'artist',
       })),
     });
-    let exported, playback;
+    let exported,
+      playback,
+      preferences = null;
     const commands = [];
     const window = new BrowserWindow({
       show: false,
@@ -43,6 +45,11 @@ app.whenReady().then(async () => {
       (_details, done) => done({ cancel: true }),
     );
     ipcMain.handle('wrapper-request', (_event, operation, payload) => {
+      if (operation === 'readPreferences') return preferences;
+      if (operation === 'writePreferences') {
+        preferences = payload;
+        return null;
+      }
       if (operation === 'readLibrary') return saved;
       if (operation === 'writeLibrary') {
         assert.equal(payload.previous, saved);
@@ -98,6 +105,28 @@ app.whenReady().then(async () => {
     }))`);
     await window.loadFile(resolve('wrapper/bundle/index.html'));
     await waitFor("document.querySelectorAll('.song-row').length === 3");
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      "!!document.querySelector('dialog input[type=checkbox]:not(:disabled)')",
+    );
+    await evaluate(
+      "document.querySelector('dialog input[type=checkbox]').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog input[type=checkbox]')?.checked === true",
+    );
+    assert.equal(JSON.parse(preferences).normalizeVolume, true);
+    await waitFor(
+      "!document.querySelector('dialog input[type=checkbox]').disabled",
+    );
+    assert.ok(
+      commands.some(
+        (command) => command.type === 'normalization' && command.enabled,
+      ),
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     await evaluate("document.querySelector('.new-tag').click()");
     await waitFor("!!document.querySelector('dialog[open] input')");
     await evaluate(`const input = document.querySelector('dialog input');

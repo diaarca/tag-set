@@ -233,6 +233,14 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
   }
   private func request(_ operation: String, payload: Any?) async throws -> Any? {
     switch operation {
+    case "readPreferences": return UserDefaults.standard.string(forKey: "preferences")
+    case "writePreferences":
+      let data = try libraryData(payload)
+      guard data.count <= 65536, let value = String(data: data, encoding: .utf8) else {
+        throw failure("Invalid settings.")
+      }
+      UserDefaults.standard.set(value, forKey: "preferences")
+      return nil
     case "readLibrary": return try readLibrary()
     case "writeLibrary":
       guard let input = payload as? [String: Any],

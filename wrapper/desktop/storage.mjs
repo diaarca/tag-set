@@ -1,6 +1,31 @@
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import '../protocol.js';
+
+export function createPreferencesStorage(filename) {
+  return {
+    async read() {
+      try {
+        if ((await stat(filename)).size > 65536)
+          throw new Error('Settings file is too large.');
+        return await readFile(filename, 'utf8');
+      } catch (error) {
+        if (error.code === 'ENOENT') return null;
+        throw error;
+      }
+    },
+    async write(value) {
+      if (typeof value !== 'string' || Buffer.byteLength(value) > 65536)
+        throw new Error('Invalid settings.');
+      const settings = globalThis.tagsetProtocol.validatePreferences(
+        JSON.parse(value),
+      );
+      await mkdir(dirname(filename), { recursive: true, mode: 0o700 });
+      await atomicWrite(filename, JSON.stringify(settings));
+    },
+  };
+}
 
 export const maxLibraryBytes = 8 * 1024 * 1024;
 export function libraryText(value) {

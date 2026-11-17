@@ -11,6 +11,7 @@ import type { Song } from '../../shared/types.js';
 import { emptyQueue, queueReducer } from './queue.js';
 import { send, subscribe, uniqueToken, type PlaybackMessage } from './host.js';
 import '../protocol.js';
+import { usePreferences } from './Preferences';
 
 export interface PlayerHandle {
   start(songs: Song[], options?: { shuffle: boolean }): void;
@@ -35,6 +36,11 @@ const emptyPlayback: PlaybackMessage = {
 };
 
 export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
+  const { preferences } = usePreferences();
+  useEffect(() => {
+    if (window.tagsetHost)
+      send({ type: 'normalization', enabled: preferences.normalizeVolume });
+  }, [preferences.normalizeVolume]);
   const [queue, dispatch] = useReducer(queueReducer, emptyQueue);
   const [playback, setPlayback] = useState(emptyPlayback);
   const [error, setError] = useState('');

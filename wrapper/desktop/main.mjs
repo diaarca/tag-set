@@ -10,7 +10,12 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import '../protocol.js';
-import { atomicWrite, createLibraryStorage, libraryText } from './storage.mjs';
+import {
+  atomicWrite,
+  createLibraryStorage,
+  createPreferencesStorage,
+  libraryText,
+} from './storage.mjs';
 import { catalogRequest } from './catalog.mjs';
 import { createTrackNavigation } from './navigation.mjs';
 const { allowedNavigation, validateCommand, artworkURL } =
@@ -31,6 +36,10 @@ let storage;
 let loadToken = null;
 let musicFrame;
 let volume = 70;
+let normalizeVolume = false;
+const preferencesStorage = createPreferencesStorage(
+  join(userData, 'preferences.json'),
+);
 let loadTrack;
 
 function applyFrame() {
@@ -153,7 +162,7 @@ function createWindow() {
     if (new URL(music.webContents.getURL()).hostname === 'music.youtube.com')
       void music.webContents
         .executeJavaScript(
-          `window.__tagsetLoadToken = ${JSON.stringify(loadToken)}; window.__tagsetPreferredVolume = ${volume / 100}; ${bridge}`,
+          `window.__tagsetLoadToken = ${JSON.stringify(loadToken)}; window.__tagsetPreferredVolume = ${volume / 100}; window.__tagsetNormalizeVolume = ${normalizeVolume}; ${bridge}`,
         )
         .catch((error) => report({ error: error.message }));
   });
@@ -225,6 +234,11 @@ ipcMain.handle('wrapper-request', async (event, operation, payload) => {
   if (!trusted(event))
     throw new Error('Only the local TagSet interface can access its library.');
   switch (operation) {
+    case 'readPreferences':
+      return preferencesStorage.read();
+    case 'writePreferences':
+      await preferencesStorage.write(payload);
+      return null;
     case 'readLibrary':
       return storage.read();
     case 'writeLibrary':
@@ -263,11 +277,12 @@ ipcMain.on('wrapper-command', async (event, value) => {
       await loadTrack(command.videoId);
       return;
     }
-    if (command.type === 'volume') {
-      volume = command.value;
+    if (command.type === 'volume' || command.type === 'normalization') {
+      if (command.type === 'volume') volume = command.value;
+      else normalizeVolume = command.enabled;
       if (music.webContents.getURL().startsWith('https://music.youtube.com/'))
         await music.webContents.executeJavaScript(
-          `(() => { window.__tagsetPreferredVolume = ${volume / 100}; return window.__tagsetControl?.('volume', ${volume}); })()`,
+          `(() => { window.__tagsetPreferredVolume = ${volume / 100}; window.__tagsetNormalizeVolume = ${normalizeVolume}; return window.__tagsetControl?.(${JSON.stringify(command.type)}, ${command.type === 'volume' ? volume : normalizeVolume}); })()`,
         );
       return;
     }

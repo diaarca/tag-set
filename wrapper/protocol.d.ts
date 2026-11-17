@@ -1,4 +1,5 @@
 export type WrapperCommand =
+  | { type: 'normalization'; enabled: boolean }
   | { type: 'load'; videoId: string; token?: string }
   | { type: 'play' | 'pause' }
   | { type: 'seek' | 'volume'; value: number }
@@ -15,5 +16,10 @@ declare global {
     validateCommand(value: unknown): WrapperCommand;
     allowedNavigation(value: string): boolean;
     artworkURL(value: unknown): string | null;
+    validatePreferences(value: unknown): Preferences;
   };
+}
+export interface Preferences {
+  version: 1;
+  normalizeVolume: boolean;
 }

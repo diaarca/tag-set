@@ -5,6 +5,7 @@ import { Player, type PlayerHandle } from './Player';
 import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
 import { ImportSongs } from './ImportSongs';
+import { Settings } from './Settings';
 
 type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
 const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
@@ -16,6 +17,7 @@ export function App() {
   const [tagSearch, setTagSearch] = useState('');
   const [songSearch, setSongSearch] = useState('');
   const [editor, setEditor] = useState<Editor>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -198,6 +200,12 @@ export function App() {
         </nav>
         <button className="new-tag" onClick={() => setEditor({ kind: 'tag' })}>
           <span>+</span> New tag
+        </button>
+        <button
+          className="text-button settings-button"
+          onClick={() => setSettingsOpen(true)}
+        >
+          Settings
         </button>
         <div className="local-label">
           <span className="live-dot" />
@@ -468,6 +476,11 @@ export function App() {
       </main>
 
       <Player ref={player} />
+      {settingsOpen && (
+        <Modal title="Settings" onClose={() => setSettingsOpen(false)}>
+          <Settings />
+        </Modal>
+      )}
       {editor && (
         <Modal
           title={

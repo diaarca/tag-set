@@ -7,11 +7,44 @@
   let endedVideoId;
   let advertisement = false;
   let playerAPI;
-  let appliedVolume = false;
+  let appliedVolume = '';
+  let volumeElement;
   const api = () => document.getElementById('movie_player');
   const media = () =>
     api()?.querySelector?.('video, audio') ??
     document.querySelector('video, audio');
+  const applyVolume = (force = false) => {
+    const player = api(),
+      element = media(),
+      preferred = window.__tagsetPreferredVolume;
+    if (!element || typeof preferred !== 'number') return;
+    const response = player?.getPlayerResponse?.();
+    const db =
+      response?.videoDetails?.videoId === trackedVideoId
+        ? response?.playerConfig?.audioConfig?.loudnessDb
+        : undefined;
+    const normalize =
+      window.__tagsetNormalizeVolume &&
+      !advertisement &&
+      typeof db === 'number' &&
+      Number.isFinite(db);
+    const signature = `${preferred}:${!!normalize}:${trackedVideoId}:${advertisement}:${db}`;
+    if (normalize) {
+      // Set the absolute media volume to avoid applying YouTube's gain twice.
+      const target = preferred * 10 ** (-Math.max(0, db) / 20);
+      if (Math.abs(element.volume - target) > 0.001) element.volume = target;
+    } else if (
+      force ||
+      signature !== appliedVolume ||
+      element !== volumeElement
+    ) {
+      if (typeof player?.setVolume === 'function')
+        player.setVolume(preferred * 100);
+      else element.volume = preferred;
+    }
+    appliedVolume = signature;
+    volumeElement = element;
+  };
   const session = globalThis.navigator?.mediaSession;
   if (session?.setActionHandler) {
     const register = session.setActionHandler.bind(session);
@@ -74,8 +107,13 @@
         )
           throw new Error('Invalid volume.');
         window.__tagsetPreferredVolume = value / 100;
-        if (typeof player?.setVolume === 'function') player.setVolume(value);
-        else if (element) element.volume = value / 100;
+        applyVolume(true);
+        break;
+      case 'normalization':
+        if (typeof value !== 'boolean')
+          throw new Error('Invalid normalization setting.');
+        window.__tagsetNormalizeVolume = value;
+        applyVolume(true);
         break;
       default:
         throw new Error('Unsupported player command.');
@@ -105,17 +143,10 @@
       typeof candidate === 'string' && /^[\w-]{11}$/.test(candidate)
         ? candidate
         : new URL(location.href).searchParams.get('v');
-    if (
-      element &&
-      !appliedVolume &&
-      typeof window.__tagsetPreferredVolume === 'number'
-    ) {
-      element.volume = window.__tagsetPreferredVolume;
-      appliedVolume = true;
-    }
     advertisement = !!document.querySelector('.ad-showing');
     active = element;
     trackedVideoId = id;
+    applyVolume();
     if (player !== playerAPI && typeof player?.getPlayerState === 'function') {
       playerAPI = player;
       player.addEventListener('onStateChange', (state) => {
