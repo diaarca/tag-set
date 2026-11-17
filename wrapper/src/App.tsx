@@ -7,6 +7,7 @@ import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
 import { ImportSongs } from './ImportSongs';
 import { Settings } from './Settings';
+import { isPhone } from './host';
 
 type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
 const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
@@ -146,7 +147,7 @@ export function App() {
     ));
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isPhone ? ' phone-layout' : ''}`}>
       <aside className="sidebar" aria-label={t('Library navigation')}>
         <a
           className="brand"

@@ -9,7 +9,13 @@ import {
 } from 'react';
 import type { Song } from '../../shared/types.js';
 import { emptyQueue, queueReducer } from './queue.js';
-import { send, subscribe, uniqueToken, type PlaybackMessage } from './host.js';
+import {
+  isPhone,
+  send,
+  subscribe,
+  uniqueToken,
+  type PlaybackMessage,
+} from './host.js';
 import '../protocol.js';
 import { usePreferences, useTranslation } from './Preferences';
 
@@ -49,6 +55,11 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   const [loadingNoticeFor, setLoadingNoticeFor] = useState('');
   const [volume, setVolume] = useState(70);
   const [websiteOpen, setWebsiteOpen] = useState(false);
+  const [phoneExpanded, setPhoneExpanded] = useState(false);
+  const miniOpen = useRef<HTMLButtonElement>(null);
+  const phoneBack = useRef<HTMLButtonElement>(null);
+  const openedOnPhone = useRef(false);
+  const swipe = useRef<{ x: number; y: number } | undefined>(undefined);
   const [artwork, setArtwork] = useState<{ videoId: string; url: string }>();
   const [failedArtwork, setFailedArtwork] = useState('');
   const [failedThumbnail, setFailedThumbnail] = useState('');
@@ -81,10 +92,11 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     () => ({
       start(songs, options) {
         dispatch({ type: 'start', songs, shuffle: options?.shuffle });
-        panel.current?.scrollIntoView({
-          block: 'nearest',
-          behavior: 'smooth',
-        });
+        if (!isPhone)
+          panel.current?.scrollIntoView({
+            block: 'nearest',
+            behavior: 'smooth',
+          });
       },
       remove(id) {
         dispatch({ type: 'remove', id });
@@ -92,6 +104,25 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     }),
     [],
   );
+  const closePhonePlayer = useCallback(() => {
+    setPhoneExpanded(false);
+    setWebsiteOpen(false);
+  }, []);
+  useEffect(() => {
+    if (!isPhone) return;
+    if (!phoneExpanded) {
+      if (openedOnPhone.current)
+        miniOpen.current?.focus({ preventScroll: true });
+      return;
+    }
+    openedOnPhone.current = true;
+    phoneBack.current?.focus({ preventScroll: true });
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = overflow;
+    };
+  }, [phoneExpanded]);
   useEffect(
     () =>
       subscribe((message) => {
@@ -233,8 +264,20 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const rect = element.getBoundingClientRect();
+        const bounds = isPhone ? panel.current!.getBoundingClientRect() : null;
+        const x = bounds ? Math.max(rect.left, bounds.left, 0) : rect.x;
+        const y = bounds ? Math.max(rect.top, bounds.top, 0) : rect.y;
+        const width = bounds
+          ? Math.max(0, Math.min(rect.right, bounds.right, innerWidth) - x)
+          : rect.width;
+        const height = bounds
+          ? Math.max(0, Math.min(rect.bottom, bounds.bottom, innerHeight) - y)
+          : rect.height;
         const visible =
           websiteOpen &&
+          (!isPhone || phoneExpanded) &&
+          width > 0 &&
+          height > 0 &&
           !document.querySelector('dialog[open]') &&
           rect.bottom > 0 &&
           rect.top < innerHeight &&
@@ -242,10 +285,10 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
           rect.left < innerWidth;
         const command = {
           type: 'layout' as const,
-          x: visible ? rect.x : 0,
-          y: visible ? rect.y : 0,
-          width: visible ? rect.width : 0,
-          height: visible ? rect.height : 0,
+          x: visible ? x : 0,
+          y: visible ? y : 0,
+          width: visible ? width : 0,
+          height: visible ? height : 0,
           visible,
         };
         const encoded = JSON.stringify(command);
@@ -282,7 +325,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         height: 0,
       });
     };
-  }, [websiteOpen]);
+  }, [websiteOpen, phoneExpanded]);
   const matching =
     playback.loadToken === active.current?.token &&
     playback.videoId === song?.videoId;
@@ -344,181 +387,316 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         ? thumbnail
         : null;
   return (
-    <aside
-      ref={panel}
-      className={`player-panel${websiteOpen ? ' wrapper-site-open' : ''}`}
-      aria-label={t('Music player')}
-    >
-      <div className="panel-heading">
-        <span className="eyebrow">{t('NOW PLAYING')}</span>
-        <span className="live-dot" />
-      </div>
-      <div className="wrapper-cover">
-        {image ? (
-          <img
-            key={image}
-            src={image}
-            alt={t('Cover for {0}', song?.title ?? t('the current song'))}
-            referrerPolicy="no-referrer"
-            onError={() => {
-              if (image === cover) setFailedArtwork(image);
-              else setFailedThumbnail(image);
-            }}
-          />
-        ) : (
-          <span aria-label={t('No cover available')}>♫</span>
-        )}
-      </div>
-      <button
-        className="text-button wrapper-site-toggle"
-        aria-expanded={websiteOpen}
-        onClick={() => {
-          if (websiteOpen && song && !matching) {
-            if (queue.playing) dispatch({ type: 'retry' });
-            else send({ type: 'pause' });
+    <>
+      <aside
+        ref={panel}
+        id="now-playing-panel"
+        className={`player-panel${websiteOpen ? ' wrapper-site-open' : ''}${phoneExpanded ? ' phone-player-open' : ''}`}
+        aria-label={t('Music player')}
+        role={isPhone ? 'region' : undefined}
+        aria-hidden={isPhone && !phoneExpanded ? true : undefined}
+        inert={isPhone && !phoneExpanded}
+        onKeyDown={(event) => {
+          if (
+            isPhone &&
+            phoneExpanded &&
+            event.key === 'Escape' &&
+            !event.defaultPrevented
+          ) {
+            event.preventDefault();
+            closePhonePlayer();
           }
-          setWebsiteOpen((value) => !value);
+        }}
+        onTouchStart={(event) => {
+          swipe.current = undefined;
+          if (
+            !isPhone ||
+            !phoneExpanded ||
+            event.touches.length !== 1 ||
+            panel.current!.scrollTop > 0 ||
+            (event.target as HTMLElement).closest(
+              'button, input, select, textarea, a, .wrapper-music-surface',
+            )
+          )
+            return;
+          swipe.current = {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY,
+          };
+        }}
+        onTouchEnd={(event) => {
+          const start = swipe.current;
+          swipe.current = undefined;
+          if (
+            !start ||
+            event.changedTouches.length !== 1 ||
+            panel.current!.scrollTop > 0
+          )
+            return;
+          const dx = event.changedTouches[0].clientX - start.x,
+            dy = event.changedTouches[0].clientY - start.y;
+          if (dy >= 80 && dy > Math.abs(dx) * 1.5) closePhonePlayer();
+        }}
+        onTouchCancel={() => {
+          swipe.current = undefined;
         }}
       >
-        {websiteOpen ? t('Close YouTube Music') : t('Open YouTube Music')}
-      </button>
-      {websiteOpen && (
-        <p className="field-note">
-          {t(
-            'Use this view for sign-in, consent, or playback prompts. Close it to return control to TagSet.',
-          )}
-        </p>
-      )}
-      <div
-        hidden={!websiteOpen}
-        ref={surface}
-        className="wrapper-music-surface"
-        aria-label={t('YouTube Music website')}
-      />
-      <div className="now-playing">
-        <span className="eyebrow">
-          {song
-            ? t('TRACK {0} OF {1}', queue.index + 1, queue.songs.length)
-            : t('YOUR COLLECTION, YOUR CONNECTIONS')}
-        </span>
-        <h2>{song?.title ?? t('Choose a song or tag.')}</h2>
-        <p>
-          {song?.artists.join(' · ') ??
-            t('Choose a song or let a tag set the mood.')}
-        </p>
-      </div>
-      <div className="seek-row">
-        <input
-          aria-label={t('Seek')}
-          type="range"
-          min="0"
-          max={duration || 1}
-          value={Math.min(position, duration || 1)}
-          disabled={!matching || !duration || playback.advertisement}
-          onChange={(event) =>
-            send({ type: 'seek', value: Number(event.target.value) })
-          }
-        />
-        <div className="time-labels">
-          <span>{time(position)}</span>
-          <span>{time(duration)}</span>
+        {isPhone && (
+          <div className="phone-player-header">
+            <button
+              ref={phoneBack}
+              type="button"
+              className="text-button"
+              onClick={closePhonePlayer}
+            >
+              ‹ {t('Back to library')}
+            </button>
+            <span className="phone-drag-handle" aria-hidden="true" />
+          </div>
+        )}
+        <div className="panel-heading">
+          <span className="eyebrow">{t('NOW PLAYING')}</span>
+          <span className="live-dot" />
         </div>
-      </div>
-      <div className="transport">
+        <div className="wrapper-cover">
+          {image ? (
+            <img
+              key={image}
+              src={image}
+              alt={t('Cover for {0}', song?.title ?? t('the current song'))}
+              referrerPolicy="no-referrer"
+              onError={() => {
+                if (image === cover) setFailedArtwork(image);
+                else setFailedThumbnail(image);
+              }}
+            />
+          ) : (
+            <span aria-label={t('No cover available')}>♫</span>
+          )}
+        </div>
         <button
-          className={`icon-button ${queue.shuffle ? 'active' : ''}`}
-          aria-label={t('Shuffle')}
-          aria-pressed={queue.shuffle}
-          onClick={() => dispatch({ type: 'shuffle' })}
+          className="text-button wrapper-site-toggle"
+          aria-expanded={websiteOpen}
+          onClick={() => {
+            if (websiteOpen && song && !matching) {
+              if (queue.playing) dispatch({ type: 'retry' });
+              else send({ type: 'pause' });
+            }
+            setWebsiteOpen((value) => !value);
+          }}
         >
-          ⤨
+          {websiteOpen ? t('Close YouTube Music') : t('Open YouTube Music')}
         </button>
-        <button
-          className="icon-button"
-          aria-label={t('Previous song')}
-          disabled={!song}
-          onClick={() => navigate('previous')}
-        >
-          ▐◀
-        </button>
-        <button
-          className="play-toggle"
-          aria-label={playing ? t('Pause') : t('Play')}
-          disabled={!song}
-          onClick={togglePlayback}
-        >
-          {playing ? 'Ⅱ' : '▶'}
-        </button>
-        <button
-          className="icon-button"
-          aria-label={t('Next song')}
-          disabled={!song}
-          onClick={() => navigate('next')}
-        >
-          ▶▌
-        </button>
-        <button
-          className={`icon-button ${queue.repeat !== 'off' ? 'active' : ''}`}
-          aria-label={t('Repeat: {0}', t(queue.repeat))}
-          onClick={() => dispatch({ type: 'repeat' })}
-        >
-          {queue.repeat === 'one' ? '↻₁' : '↻'}
-        </button>
-      </div>
-      {window.tagsetHost && (
-        <label className="volume-row">
-          {t('Volume')}
+        {websiteOpen && (
+          <p className="field-note">
+            {t(
+              'Use this view for sign-in, consent, or playback prompts. Close it to return control to TagSet.',
+            )}
+          </p>
+        )}
+        <div
+          hidden={!websiteOpen}
+          ref={surface}
+          className="wrapper-music-surface"
+          aria-label={t('YouTube Music website')}
+        />
+        <div className="now-playing">
+          <span className="eyebrow">
+            {song
+              ? t('TRACK {0} OF {1}', queue.index + 1, queue.songs.length)
+              : t('YOUR COLLECTION, YOUR CONNECTIONS')}
+          </span>
+          <h2>{song?.title ?? t('Choose a song or tag.')}</h2>
+          <p>
+            {song?.artists.join(' · ') ??
+              t('Choose a song or let a tag set the mood.')}
+          </p>
+        </div>
+        <div className="seek-row">
           <input
-            aria-label={t('Volume')}
+            aria-label={t('Seek')}
             type="range"
             min="0"
-            max="100"
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
+            max={duration || 1}
+            value={Math.min(position, duration || 1)}
+            disabled={!matching || !duration || playback.advertisement}
+            onChange={(event) =>
+              send({ type: 'seek', value: Number(event.target.value) })
+            }
           />
-        </label>
-      )}
-      {loading && loadingNoticeFor === `${videoId}:${queue.revision}` && (
-        <p className="notice" role="status">
-          {t(
-            'Opening your song in YouTube Music… Use “Open YouTube Music” if it needs consent or a playback prompt.',
-          )}
-        </p>
-      )}
-      {playback.advertisement && (
-        <p className="notice">
-          {t('Advertisement · playback is handled by YouTube Music.')}
-        </p>
-      )}
-      {error && (
-        <div className="notice error" role="alert">
-          {t(error)}
-          <button onClick={() => dispatch({ type: 'retry' })}>
-            {t('Retry song')}
+          <div className="time-labels">
+            <span>{time(position)}</span>
+            <span>{time(duration)}</span>
+          </div>
+        </div>
+        <div className="transport">
+          <button
+            className={`icon-button ${queue.shuffle ? 'active' : ''}`}
+            aria-label={t('Shuffle')}
+            aria-pressed={queue.shuffle}
+            onClick={() => dispatch({ type: 'shuffle' })}
+          >
+            ⤨
+          </button>
+          <button
+            className="icon-button"
+            aria-label={t('Previous song')}
+            disabled={!song}
+            onClick={() => navigate('previous')}
+          >
+            ▐◀
+          </button>
+          <button
+            className="play-toggle"
+            aria-label={playing ? t('Pause') : t('Play')}
+            disabled={!song}
+            onClick={togglePlayback}
+          >
+            {playing ? 'Ⅱ' : '▶'}
+          </button>
+          <button
+            className="icon-button"
+            aria-label={t('Next song')}
+            disabled={!song}
+            onClick={() => navigate('next')}
+          >
+            ▶▌
+          </button>
+          <button
+            className={`icon-button ${queue.repeat !== 'off' ? 'active' : ''}`}
+            aria-label={t('Repeat: {0}', t(queue.repeat))}
+            onClick={() => dispatch({ type: 'repeat' })}
+          >
+            {queue.repeat === 'one' ? '↻₁' : '↻'}
           </button>
         </div>
+        {window.tagsetHost && (
+          <label className="volume-row">
+            {t('Volume')}
+            <input
+              aria-label={t('Volume')}
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
+          </label>
+        )}
+        {loading && loadingNoticeFor === `${videoId}:${queue.revision}` && (
+          <p className="notice" role="status">
+            {t(
+              'Opening your song in YouTube Music… Use “Open YouTube Music” if it needs consent or a playback prompt.',
+            )}
+          </p>
+        )}
+        {playback.advertisement && (
+          <p className="notice">
+            {t('Advertisement · playback is handled by YouTube Music.')}
+          </p>
+        )}
+        {error && (
+          <div className="notice error" role="alert">
+            {t(error)}
+            <button onClick={() => dispatch({ type: 'retry' })}>
+              {t('Retry song')}
+            </button>
+          </div>
+        )}
+        <div className="queue-heading">
+          <h3>{t('Up next')}</h3>
+          <span>
+            {Math.max(0, queue.songs.length - queue.index - 1)}
+            {t(' tracks')}
+          </span>
+        </div>
+        <ol className="queue-list">
+          {queue.songs.slice(queue.index + 1).map((item, index) => (
+            <li key={item.id}>
+              <span className="track-number">{queue.index + index + 2}</span>
+              <div>
+                <strong>{item.title}</strong>
+                <span>{item.artists.join(' · ')}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="player-footnote">
+          {t('Library saved on this device · Playback by YouTube Music')}
+        </p>
+      </aside>
+      {isPhone && (
+        <nav
+          className="phone-mini-player"
+          aria-label={t('Compact music player')}
+        >
+          <button
+            ref={miniOpen}
+            type="button"
+            className="mini-player-open"
+            aria-label={t(
+              'Open now playing: {0}',
+              song
+                ? `${song.title} — ${song.artists.join(' · ')}`
+                : t('Choose a song or tag.'),
+            )}
+            aria-expanded={phoneExpanded}
+            aria-controls="now-playing-panel"
+            onClick={() => setPhoneExpanded(true)}
+          >
+            <span className="mini-player-cover" aria-hidden="true">
+              {image ? (
+                <img
+                  src={image}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  onError={() => {
+                    if (image === cover) setFailedArtwork(image);
+                    else setFailedThumbnail(image);
+                  }}
+                />
+              ) : (
+                '♫'
+              )}
+            </span>
+            <span className="mini-player-details">
+              <strong>{song?.title ?? t('Choose a song or tag.')}</strong>
+              <span>
+                {error
+                  ? t('Playback needs attention')
+                  : song?.artists.join(' · ')}
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t('Previous song')}
+            disabled={!song}
+            onClick={() => navigate('previous')}
+          >
+            ▐◀
+          </button>
+          <button
+            type="button"
+            className="icon-button mini-play-toggle"
+            aria-label={playing ? t('Pause') : t('Play')}
+            disabled={!song}
+            onClick={togglePlayback}
+          >
+            {playing ? 'Ⅱ' : '▶'}
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t('Next song')}
+            disabled={!song}
+            onClick={() => navigate('next')}
+          >
+            ▶▌
+          </button>
+        </nav>
       )}
-      <div className="queue-heading">
-        <h3>{t('Up next')}</h3>
-        <span>
-          {Math.max(0, queue.songs.length - queue.index - 1)}
-          {t(' tracks')}
-        </span>
-      </div>
-      <ol className="queue-list">
-        {queue.songs.slice(queue.index + 1).map((item, index) => (
-          <li key={item.id}>
-            <span className="track-number">{queue.index + index + 2}</span>
-            <div>
-              <strong>{item.title}</strong>
-              <span>{item.artists.join(' · ')}</span>
-            </div>
-          </li>
-        ))}
-      </ol>
-      <p className="player-footnote">
-        {t('Library saved on this device · Playback by YouTube Music')}
-      </p>
-    </aside>
+    </>
   );
 });

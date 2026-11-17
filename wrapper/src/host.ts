@@ -1,5 +1,7 @@
 import type { WrapperCommand } from '../protocol.js';
 
+export const isPhone = /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent);
+
 export interface PlaybackMessage {
   type: 'playback';
   videoId: string | null;

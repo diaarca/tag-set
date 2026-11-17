@@ -1,4 +1,8 @@
 export const french: Record<string, string> = {
+  'Back to library': 'Retour à la bibliothèque',
+  'Compact music player': 'Lecteur compact',
+  'Open now playing: {0}': 'Ouvrir la lecture en cours : {0}',
+  'Playback needs attention': 'La lecture nécessite une intervention',
   'The library changed outside TagSet. Reload it before exporting or sharing.':
     'La bibliothèque a changé en dehors de TagSet. Rechargez-la avant de l’exporter ou de la partager.',
   'Choose an existing library folder.':
