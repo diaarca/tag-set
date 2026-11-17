@@ -83,6 +83,19 @@ app.whenReady().then(async () => {
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
     };
+    const typeInto = async (label, value) => {
+      await evaluate(`(() => {
+        const input = document.querySelector('[aria-label="${label}"]');
+        input.focus();
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)});
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    };
+    const press = (key) =>
+      evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+      key: ${JSON.stringify(key)}, bubbles: true, cancelable: true,
+    }))`);
     await window.loadFile(resolve('wrapper/bundle/index.html'));
     await waitFor("document.querySelectorAll('.song-row').length === 3");
     await evaluate("document.querySelector('.new-tag').click()");
@@ -95,6 +108,86 @@ app.whenReady().then(async () => {
     await waitFor(
       "Array.from(document.querySelectorAll('.tag-navigation button')).some(button => button.textContent.includes('Mood'))",
     );
+    await waitFor('!!document.querySelector(\'[aria-label="Parent tag"]\')');
+    await typeInto('Parent tag', 'Atmosphere');
+    await waitFor(
+      "document.querySelector('[role=option]')?.textContent.includes('Create “Atmosphere”')",
+    );
+    await press('Enter');
+    await waitFor(
+      "document.querySelector('.relationship-list')?.textContent.includes('Atmosphere')",
+    );
+    await typeInto('Child tag', 'ART');
+    await waitFor(
+      "document.querySelector('[role=option]')?.textContent.trim() === 'Artist'",
+    );
+    await evaluate("document.querySelector('[role=option]').click()");
+    await waitFor(
+      "Array.from(document.querySelectorAll('.relationship-list')).some(list => list.textContent.includes('Artist'))",
+    );
+    const edges = JSON.parse(saved).edges;
+    assert.equal(edges.length, 2);
+    await typeInto('Child tag', ' artist ');
+    assert.equal(
+      await evaluate("document.querySelectorAll('[role=option]').length"),
+      0,
+    );
+    await typeInto('Parent tag', 'ARTIST');
+    await press('Enter');
+    await waitFor(
+      "document.querySelector('[role=alert]')?.textContent.includes('cycle')",
+    );
+    assert.deepEqual(JSON.parse(saved).edges, edges);
+    await typeInto('Parent tag', 'Mood');
+    assert.equal(
+      await evaluate("document.querySelectorAll('[role=option]').length"),
+      0,
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Edit Song 1"]\').click()',
+    );
+    await waitFor('!!document.querySelector(\'[aria-label="Tag to assign"]\')');
+    await typeInto('Tag to assign', 'Focus');
+    await press('Enter');
+    await waitFor(
+      "document.querySelector('.membership-list')?.textContent.includes('Focus')",
+    );
+    await typeInto('Tag to assign', ' moo ');
+    await waitFor(
+      "document.querySelector('[role=option]')?.textContent.trim() === 'Mood'",
+    );
+    // Navigate to the explicit creation option, then back to the existing tag.
+    await press('ArrowDown');
+    await waitFor(
+      "document.querySelector('[role=option][aria-selected=true]')?.textContent.includes('Create')",
+    );
+    await press('ArrowUp');
+    await waitFor(
+      "document.querySelector('[role=option][aria-selected=true]')?.textContent.trim() === 'Mood'",
+    );
+    await press('Enter');
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Remove direct Mood tag"]\')',
+    );
+    await typeInto('Tag to assign', ' MOOD ');
+    assert.equal(
+      await evaluate("document.querySelectorAll('[role=option]').length"),
+      0,
+    );
+    const tags = JSON.parse(saved).tags;
+    assert.equal(
+      tags.filter((tag) => tag.name.toLowerCase() === 'mood').length,
+      1,
+    );
+    assert.ok(tags.some((tag) => tag.name === 'Focus'));
+    await press('Escape');
+    await waitFor(
+      "document.querySelector('[role=combobox]')?.getAttribute('aria-expanded') === 'false'",
+    );
+    assert.ok(await evaluate("!!document.querySelector('dialog[open]')"));
     await evaluate(
       'document.querySelector(\'[aria-label="Close dialog"]\').click()',
     );
@@ -181,7 +274,7 @@ app.whenReady().then(async () => {
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: tag editing/pinning, persistence, export, shuffle/repeat, slider keyboard controls, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag editing/pinning, persistence, export, shuffle/repeat, slider keyboard controls, and responsive layout.',
     );
     app.quit();
   } catch (error) {
