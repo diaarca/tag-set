@@ -1,6 +1,7 @@
 import { usePreferences } from './Preferences';
+import { GitHubSharing } from './GitHubSharing';
 
-export function Settings() {
+export function Settings({ onImported }: { onImported(): void }) {
   const { preferences, busy, error, save } = usePreferences();
   return (
     <>
@@ -31,6 +32,10 @@ export function Settings() {
           </p>
         )}
       </section>
+      <GitHubSharing
+        key={`${preferences.githubRepository}/${preferences.githubBranch}`}
+        onImported={onImported}
+      />
       {error && (
         <p className="notice error" role="alert">
           {error}

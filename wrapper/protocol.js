@@ -1,6 +1,12 @@
 (() => {
   function validatePreferences(value) {
-    if (value === null) return { version: 1, normalizeVolume: false };
+    if (value === null)
+      return {
+        version: 1,
+        normalizeVolume: false,
+        githubRepository: '',
+        githubBranch: 'main',
+      };
     if (
       !value ||
       value.version !== 1 ||
@@ -9,7 +15,33 @@
       throw new Error(
         'Invalid settings. The saved settings have not been changed.',
       );
-    return { version: 1, normalizeVolume: value.normalizeVolume };
+    const config = value.githubRepository
+      ? validateGitHubConfig({
+          repository: value.githubRepository,
+          branch: value.githubBranch ?? 'main',
+        })
+      : { repository: '', branch: 'main' };
+    return {
+      version: 1,
+      normalizeVolume: value.normalizeVolume,
+      githubRepository: config.repository,
+      githubBranch: config.branch,
+    };
+  }
+  function validateGitHubConfig(value) {
+    if (
+      !value ||
+      typeof value.repository !== 'string' ||
+      !/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9_.-]{1,100}$/.test(value.repository) ||
+      ['.', '..'].includes(value.repository.split('/')[1]) ||
+      typeof value.branch !== 'string' ||
+      !value.branch.trim() ||
+      value.branch.length > 200 ||
+      /[\s?\\#]/.test(value.branch) ||
+      [...value.branch].some((character) => character.charCodeAt(0) < 32)
+    )
+      throw new Error('Enter a repository as owner/repo and a valid branch.');
+    return { repository: value.repository, branch: value.branch };
   }
   function validateCommand(value) {
     if (!value || typeof value !== 'object')
@@ -115,5 +147,6 @@
     allowedNavigation,
     artworkURL,
     validatePreferences,
+    validateGitHubConfig,
   });
 })();

@@ -51,6 +51,14 @@ nix run .#ios -- --device DEVICE_ID --allow-provisioning-updates
 
 `--team TEAM_ID` overrides the configured team. `--allow-provisioning-updates` lets Xcode manage signing profiles. Free Personal Team profiles expire after seven days; reinstall to renew.
 
+## Settings
+
+Open **Settings** in the sidebar. Desktop loudness normalization reduces loud tracks using available YouTube metadata; it is unavailable on iOS.
+
+For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. Use **Pull from GitHub** before **Push to GitHub**, including before the first push to an empty library repository. A private repository keeps your library private. No Git installation is needed.
+
+Pull merges additions and preserves local edits; deletions do not propagate. Push writes `tagset-library.json` and rejects unseen remote changes. Tokens are stored using the desktop system keychain or iOS Keychain, separately from library exports; Linux requires an available system keyring. Sharing is manual, and iCloud storage is not implemented.
+
 ## Data and limits
 
 Libraries remain on each device: `Setwise Wrapper/library.json` in Electron's application-data directory, or `SetwiseWrapper/library.json` in iOS Application Support. Legacy storage/encryption identities and Apple bundle IDs are retained to preserve libraries and sign-in through the rename. Use **Export library** for backups and transfer. Automatic synchronization and offline music downloads are not implemented.

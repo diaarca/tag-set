@@ -29,6 +29,9 @@ app.whenReady().then(async () => {
     let exported,
       playback,
       preferences = null;
+    let githubHasToken = false;
+    let githubSha = 'a'.repeat(40);
+    let pushedLibrary;
     const commands = [];
     const window = new BrowserWindow({
       show: false,
@@ -45,6 +48,23 @@ app.whenReady().then(async () => {
       (_details, done) => done({ cancel: true }),
     );
     ipcMain.handle('wrapper-request', (_event, operation, payload) => {
+      if (operation === 'hasGitHubToken') return githubHasToken;
+      if (operation === 'saveGitHubToken') {
+        githubHasToken = true;
+        return null;
+      }
+      if (operation === 'removeGitHubToken') {
+        githubHasToken = false;
+        return null;
+      }
+      if (operation === 'githubPull') return { data: saved, sha: githubSha };
+      if (operation === 'githubPush') {
+        if (payload.sha !== githubSha)
+          throw new Error('Remote changed. Pull again before pushing.');
+        pushedLibrary = JSON.parse(payload.data);
+        githubSha = 'c'.repeat(40);
+        return { sha: githubSha };
+      }
       if (operation === 'readPreferences') return preferences;
       if (operation === 'writePreferences') {
         preferences = payload;
@@ -345,6 +365,55 @@ app.whenReady().then(async () => {
     );
     assert.equal(exported.songs.length, 3);
     assert.ok(exported.tags.find((tag) => tag.name === 'Mood').pinned);
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="GitHub repository"]:not(:disabled)\')',
+    );
+    await typeInto('GitHub repository', 'example/library');
+    await typeInto('GitHub token', 'unit_test');
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Save connection').click()",
+    );
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub' && !button.disabled)",
+    );
+    assert.ok(
+      await evaluate(
+        "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').disabled",
+      ),
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub').click()",
+    );
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub' && !button.disabled)",
+    );
+    githubSha = 'b'.repeat(40);
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog [role=alert]')?.textContent.includes('Pull again')",
+    );
+    assert.equal(pushedLibrary, undefined);
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub').click()",
+    );
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub' && !button.disabled)",
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog [role=status]')?.textContent.includes('pushed')",
+    );
+    assert.equal(pushedLibrary.songs.length, 3);
+    assert.equal(JSON.parse(preferences).githubRepository, 'example/library');
+    assert.ok(!preferences.includes('unit_test'));
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     for (const width of [1420, 1000, 390]) {
       window.setSize(width, 900);
       await new Promise((resolve) => setTimeout(resolve, 50));

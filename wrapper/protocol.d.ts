@@ -17,9 +17,15 @@ declare global {
     allowedNavigation(value: string): boolean;
     artworkURL(value: unknown): string | null;
     validatePreferences(value: unknown): Preferences;
+    validateGitHubConfig(value: unknown): {
+      repository: string;
+      branch: string;
+    };
   };
 }
 export interface Preferences {
   version: 1;
   normalizeVolume: boolean;
+  githubRepository: string;
+  githubBranch: string;
 }

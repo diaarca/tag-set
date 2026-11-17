@@ -14,7 +14,7 @@ const Context = createContext<{
   preferences: Preferences;
   busy: boolean;
   error: string;
-  save(value: Preferences): Promise<void>;
+  save(value: Preferences): Promise<boolean>;
 } | null>(null);
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
@@ -43,17 +43,19 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   const save = async (value: Preferences) => {
-    if (!loaded || busy) return;
+    if (!loaded || busy) return false;
     setBusy(true);
     setError('');
     try {
       const next = validate(value);
       await request('writePreferences', JSON.stringify(next));
       setPreferences(next);
+      return true;
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'Settings could not be saved.',
       );
+      return false;
     } finally {
       setBusy(false);
     }

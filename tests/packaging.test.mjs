@@ -19,6 +19,7 @@ test('packages runtime files and licenses without adjacent private files', async
     desktop: [
       'main.mjs',
       'catalog.mjs',
+      'github.mjs',
       'storage.mjs',
       'navigation.mjs',
       'preload.cjs',

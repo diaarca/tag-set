@@ -11,7 +11,10 @@ test('settings persist independently and invalid writes preserve the saved prefe
   try {
     const storage = createPreferencesStorage(join(folder, 'preferences.json'));
     assert.equal(await storage.read(), null);
-    const settings = { version: 1, normalizeVolume: true };
+    const settings = {
+      ...globalThis.tagsetProtocol.validatePreferences(null),
+      normalizeVolume: true,
+    };
     await storage.write(JSON.stringify(settings));
     assert.deepEqual(JSON.parse((await storage.read())!), settings);
     await assert.rejects(storage.write('{broken'));

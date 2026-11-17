@@ -478,7 +478,7 @@ export function App() {
       <Player ref={player} />
       {settingsOpen && (
         <Modal title="Settings" onClose={() => setSettingsOpen(false)}>
-          <Settings />
+          <Settings onImported={refresh} />
         </Modal>
       )}
       {editor && (

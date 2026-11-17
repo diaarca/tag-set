@@ -10,6 +10,8 @@ TagSet runs locally without a project-operated server or automatic library synch
 
 Desktop remote content runs sandboxed with Node.js disabled and context isolation enabled. Native library operations are restricted to the bundled interface. Preserve those boundaries, URL restrictions, and library validation when contributing.
 
+Optional library sharing contacts `api.github.com` only through native operations. GitHub tokens are protected by Electron's OS-backed encryption or iOS Keychain, never included in library exports or sent to YouTube. Linux plaintext credential storage is rejected. Use a fine-grained token scoped to the chosen library repository with Contents read/write permission. Published library files are readable by anyone who can access that repository.
+
 ## Maintenance and support
 
 Review staged changes before committing; keep personal files covered by `.gitignore` outside Git. Dependabot proposes dependency updates. Run `npm audit` when reviewing npm dependencies; it does not cover Electron supplied by Nix or Apple's WebKit. Keep `flake.lock` and the device operating system up to date as well.

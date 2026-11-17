@@ -26,7 +26,12 @@ type Operation =
   | 'catalog'
   | 'exportLibrary'
   | 'readPreferences'
-  | 'writePreferences';
+  | 'writePreferences'
+  | 'hasGitHubToken'
+  | 'saveGitHubToken'
+  | 'removeGitHubToken'
+  | 'githubPull'
+  | 'githubPush';
 declare global {
   interface Window {
     tagsetHost?: {
