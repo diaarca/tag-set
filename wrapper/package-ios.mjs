@@ -12,12 +12,13 @@ async function build() {
       team: { type: 'string' },
       'list-devices': { type: 'boolean' },
       'allow-provisioning-updates': { type: 'boolean' },
+      open: { type: 'boolean' },
       help: { type: 'boolean' },
     },
   });
   if (values.help) {
     console.log(
-      'nix run .#ios                        Build an unsigned device archive (not installable).\nnix run .#ios -- --list-devices       List devices known to Xcode.\nnix run .#ios -- --device ID --team TEAMID\n                                    Build, sign and install on a connected device.\nAdd --allow-provisioning-updates only to allow Xcode to manage signing profiles.',
+      'nix run .#xcode                      Build the interface and open the iOS project in Xcode.\nnix run .#ios                        Build an unsigned device archive (not installable).\nnix run .#ios -- --list-devices       List devices known to Xcode.\nnix run .#ios -- --device ID --team TEAMID\n                                    Build, sign and install on a connected device.\nAdd --allow-provisioning-updates only to allow Xcode to manage signing profiles.',
     );
     return;
   }
@@ -28,6 +29,16 @@ async function build() {
   if (!values.device && (values.team || values['allow-provisioning-updates']))
     throw new Error(
       '--team and --allow-provisioning-updates require --device.',
+    );
+  if (
+    values.open &&
+    (values.device ||
+      values.team ||
+      values['list-devices'] ||
+      values['allow-provisioning-updates'])
+  )
+    throw new Error(
+      '--open cannot be combined with device or signing options.',
     );
   const env = { ...process.env, PATH: '/usr/bin:/bin:/usr/sbin:/sbin' };
   for (const key of Object.keys(env)) {
@@ -86,6 +97,10 @@ async function build() {
     await access(project);
   } catch {
     run('xcodegen', ['generate', '--spec', 'apple/wrapper.yml']);
+  }
+  if (values.open) {
+    apple('/usr/bin/open', ['-a', 'Xcode', project]);
+    return;
   }
   const base = [
     '-project',

@@ -27,20 +27,19 @@ Direnv loads the same environment automatically. Nix provides Node.js, Electron,
 | `nix run .#linux`       | Build a Linux x64 archive.                                                         |
 | `nix run .#linux-arm64` | Build a Linux ARM64 archive.                                                       |
 | `nix run .#ios`         | Build an unsigned iOS archive; use Xcode or the install command below to install.  |
+| `nix run .#xcode`       | Build the current interface and open the iOS project in Xcode.                     |
 
 Packages are written to `dist/releases` and include their runtime. Windows/Linux packages can be built on macOS or Linux. The DMG requires Apple Silicon macOS; Intel Mac build hosts are unsupported by the pinned Nixpkgs. Installed apps need no Nix or Node.js. Linux also requires desktop libraries and Chromium sandbox support.
 
 ## iPhone and iPad
 
-Requires full Xcode and iOS 17+. Build the interface, then open the project:
+Requires full Xcode and iOS 17+. From the repository root:
 
 ```sh
-npm run build
-xcodegen generate --spec apple/wrapper.yml  # Only if the project is missing.
-open apple/TagSet.xcodeproj
+nix run .#xcode
 ```
 
-Select **TagSet-iOS**, your connected iPhone, automatic signing, and your Personal Team. Press **Command-R** to install and launch. Enable Developer Mode on the phone. Keep signing overrides in the ignored `apple/Config/Signing.local.xcconfig`; regenerating the project replaces settings made only in Xcode.
+The command builds the interface and generates the project only if missing. Select **TagSet-iOS**, your connected iPhone, automatic signing, and your Personal Team. Press **Command-R** to install and launch. Enable Developer Mode on the phone. Keep signing overrides in the ignored `apple/Config/Signing.local.xcconfig`; regenerating the project replaces settings made only in Xcode.
 
 For command-line installation using the configured team:
 
