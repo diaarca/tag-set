@@ -12,6 +12,11 @@ import { MusicCatalog } from './catalog.js';
 export interface LibraryHost {
   read(): Promise<string | null>;
   write(data: string, previous: string | null): Promise<void>;
+  activateLocation?(
+    token: string,
+    data: string | null,
+    previous: string | null,
+  ): Promise<string>;
 }
 export class LibraryApi {
   private library?: LibraryStore;
@@ -31,6 +36,51 @@ export class LibraryApi {
     return result;
   }
   private async perform(path: string, method: string, body: unknown) {
+    const url = new URL(path, 'https://tagset.local');
+    if (method === 'POST' && url.pathname === '/library/reload') {
+      const previous = await this.host.read();
+      const library = new LibraryStore(
+        previous === null ? undefined : JSON.parse(previous),
+      );
+      this.library = library;
+      this.previous = previous;
+      this.blocked = undefined;
+      return library.library();
+    }
+    if (method === 'PUT' && url.pathname === '/library/location') {
+      const input = object(body);
+      if (
+        !this.host.activateLocation ||
+        typeof input.token !== 'string' ||
+        (input.library !== null && typeof input.library !== 'string')
+      )
+        throw new AppError(400, 'Invalid library location request.');
+      if (input.library === null && !this.library) {
+        this.previous = await this.host.read();
+        this.library = new LibraryStore(
+          this.previous === null ? undefined : JSON.parse(this.previous),
+        );
+      }
+      const data =
+        input.library === null
+          ? JSON.stringify(this.library!.snapshot())
+          : input.library;
+      const library = new LibraryStore(JSON.parse(data));
+      const previous = await this.host.activateLocation(
+        input.token,
+        input.library === null ? data : null,
+        this.previous,
+      );
+      if (previous !== data)
+        throw new AppError(
+          409,
+          'The folder library changed. Choose the folder again.',
+        );
+      this.library = library;
+      this.previous = previous;
+      this.blocked = undefined;
+      return library.library();
+    }
     if (this.blocked) throw this.blocked;
     if (!this.library) {
       this.previous = await this.host.read();
@@ -38,11 +88,16 @@ export class LibraryApi {
         this.previous === null ? undefined : JSON.parse(this.previous),
       );
     }
-    const url = new URL(path, 'https://tagset.local');
     if (method === 'GET') {
       if (url.pathname === '/library') return this.library.library();
-      if (url.pathname === '/library/export')
+      if (url.pathname === '/library/export') {
+        if ((await this.host.read()) !== this.previous)
+          throw new AppError(
+            409,
+            'The library changed outside TagSet. Reload it before exporting or sharing.',
+          );
         return this.library.exportLibrary();
+      }
       if (url.pathname === '/songs')
         return this.library.songs(
           url.searchParams.has('tagId')

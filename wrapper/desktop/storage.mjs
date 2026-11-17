@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import '../protocol.js';
 
@@ -74,5 +74,107 @@ export function createLibraryStorage(filename) {
       tail = operation.catch(() => {});
       return operation;
     },
+  };
+}
+
+export function createLibraryLocationStorage(defaultFilename, configFilename) {
+  let filename, storage, pending;
+  let tail = Promise.resolve();
+  const initialize = async () => {
+    if (storage) return;
+    let selected = defaultFilename;
+    try {
+      if ((await stat(configFilename)).size > 65536)
+        throw new Error('Invalid saved library location.');
+      const config = JSON.parse(await readFile(configFilename, 'utf8'));
+      if (
+        config.version !== 1 ||
+        typeof config.filename !== 'string' ||
+        !isAbsolute(config.filename)
+      )
+        throw new Error('Invalid saved library location.');
+      selected = config.filename;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    filename = selected;
+    storage = createLibraryStorage(filename);
+  };
+  const run = (action) => {
+    const operation = tail.then(initialize).then(action);
+    tail = operation.catch(() => {});
+    return operation;
+  };
+  const read = async () => {
+    const data = await storage.read();
+    if (data === null && filename !== defaultFilename)
+      throw new Error(
+        'The selected library is unavailable. Restore access or choose another folder.',
+      );
+    return data;
+  };
+  const location = () => ({
+    path: filename,
+    isDefault: filename === defaultFilename,
+  });
+  return {
+    read: () => run(read),
+    write: (data, previous) =>
+      run(async () => {
+        await read();
+        await storage.write(data, previous);
+      }),
+    location: () => run(location),
+    prepare: (folder) =>
+      run(async () => {
+        pending = undefined;
+        if (
+          folder !== null &&
+          (typeof folder !== 'string' ||
+            !isAbsolute(folder) ||
+            !(await stat(folder)).isDirectory())
+        )
+          throw new Error('Choose an existing library folder.');
+        const target =
+          folder === null ? defaultFilename : resolve(folder, 'library.json');
+        const data = await createLibraryStorage(target).read();
+        if (data !== null) libraryText(data);
+        pending = { token: randomUUID(), filename: target, data };
+        return { token: pending.token, path: target, data };
+      }),
+    cancel: () =>
+      run(() => {
+        pending = undefined;
+      }),
+    activate: (token, data, previous) =>
+      run(async () => {
+        if (!pending || token !== pending.token)
+          throw new Error('Choose the library folder again.');
+        const target = pending;
+        const next = createLibraryStorage(target.filename);
+        if ((await next.read()) !== target.data)
+          throw new Error(
+            'The folder library changed. Choose the folder again.',
+          );
+        let selected = target.data;
+        if (selected === null) {
+          libraryText(data);
+          if ((await read()) !== previous)
+            throw new Error(
+              'The current library changed. Reload it before switching folders.',
+            );
+          await next.write(data, null);
+          selected = data;
+        }
+        await mkdir(dirname(configFilename), { recursive: true, mode: 0o700 });
+        await atomicWrite(
+          configFilename,
+          JSON.stringify({ version: 1, filename: target.filename }),
+        );
+        filename = target.filename;
+        storage = next;
+        pending = undefined;
+        return selected;
+      }),
   };
 }

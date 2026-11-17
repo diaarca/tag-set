@@ -32,6 +32,11 @@ app.whenReady().then(async () => {
     let githubHasToken = false;
     let githubSha = 'a'.repeat(40);
     let pushedLibrary;
+    let libraryPath = 'device/library.json';
+    let folderChoice = null;
+    let pendingFolder = null;
+    let originalLibrary;
+    let locationChanges = 0;
     const commands = [];
     const window = new BrowserWindow({
       show: false,
@@ -48,6 +53,35 @@ app.whenReady().then(async () => {
       (_details, done) => done({ cancel: true }),
     );
     ipcMain.handle('wrapper-request', (_event, operation, payload) => {
+      if (operation === 'libraryLocation')
+        return {
+          path: libraryPath,
+          isDefault: libraryPath === 'device/library.json',
+        };
+      if (operation === 'chooseLibraryFolder') {
+        pendingFolder = folderChoice;
+        return folderChoice;
+      }
+      if (operation === 'defaultLibraryFolder') {
+        pendingFolder = {
+          token: 'default',
+          path: 'device/library.json',
+          data: originalLibrary,
+        };
+        return pendingFolder;
+      }
+      if (operation === 'cancelLibraryLocation') {
+        pendingFolder = null;
+        return null;
+      }
+      if (operation === 'activateLibraryLocation') {
+        assert.equal(payload.token, pendingFolder.token);
+        libraryPath = pendingFolder.path;
+        saved = pendingFolder.data ?? payload.data;
+        pendingFolder = null;
+        locationChanges++;
+        return saved;
+      }
       if (operation === 'hasGitHubToken') return githubHasToken;
       if (operation === 'saveGitHubToken') {
         githubHasToken = true;
@@ -503,6 +537,115 @@ app.whenReady().then(async () => {
     await evaluate(
       'document.querySelector(\'[aria-label="Close dialog"]\').click()',
     );
+    originalLibrary = saved;
+    await evaluate("document.querySelector('.row-play').click()");
+    await waitFor(
+      "document.querySelector('.now-playing h2')?.textContent === 'Song 1'",
+    );
+    const beforeLocationCommands = commands.length;
+    const otherLibrary = JSON.stringify({
+      version: 1,
+      nextSongId: 101,
+      nextTagId: 101,
+      songs: [
+        {
+          id: 100,
+          videoId: 'abcdefghijk',
+          title: 'Other song',
+          artists: ['Other artist'],
+        },
+      ],
+      tags: [{ id: 100, name: 'Other artist', pinned: false, artist: true }],
+      edges: [],
+      assignments: [{ songId: 100, tagId: 100, origin: 'artist' }],
+    });
+    folderChoice = {
+      token: 'existing',
+      path: 'cloud/existing/library.json',
+      data: otherLibrary,
+    };
+    await evaluate("document.querySelector('.settings-button').click()");
+    const clickLocation = (label) =>
+      evaluate(
+        `Array.from(document.querySelectorAll('.library-location button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`,
+      );
+    await waitFor(
+      "!!document.querySelector('.library-location button:not(:disabled)')",
+    );
+    await clickLocation('Choose library folder');
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('.library-location button')).find(button => button.textContent === 'Replace current library' && !button.disabled)",
+    );
+    assert.equal(locationChanges, 0);
+    assert.equal(saved, originalLibrary);
+    await clickLocation('Cancel');
+    await waitFor("!document.querySelector('.library-location [role=alert]')");
+    assert.equal(locationChanges, 0);
+    await clickLocation('Choose library folder');
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('.library-location button')).find(button => button.textContent === 'Replace current library' && !button.disabled)",
+    );
+    await clickLocation('Replace current library');
+    await waitFor(
+      "document.querySelectorAll('.song-row').length === 1 && document.querySelector('.song-name')?.textContent === 'Other song'",
+    );
+    assert.equal(locationChanges, 1);
+    assert.equal(libraryPath, 'cloud/existing/library.json');
+    await waitFor(
+      "document.querySelector('.now-playing h2')?.textContent === 'Choose a song or tag.'",
+    );
+    assert.ok(
+      commands
+        .slice(beforeLocationCommands)
+        .some((command) => command.type === 'pause'),
+    );
+    assert.ok(
+      await evaluate(
+        "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').disabled",
+      ),
+    );
+    folderChoice = {
+      token: 'invalid',
+      path: 'cloud/invalid/library.json',
+      data: '{"version":1}',
+    };
+    await waitFor(
+      "!!document.querySelector('.library-location button:not(:disabled)')",
+    );
+    await clickLocation('Choose library folder');
+    await waitFor(
+      "document.querySelector('.library-location [role=alert]')?.textContent.includes('Invalid library')",
+    );
+    assert.equal(locationChanges, 1);
+    folderChoice = {
+      token: 'empty',
+      path: 'cloud/empty/library.json',
+      data: null,
+    };
+    await clickLocation('Choose library folder');
+    await waitFor(
+      "document.querySelector('.library-location [role=status]')?.textContent.includes('updated')",
+    );
+    assert.equal(locationChanges, 2);
+    assert.equal(JSON.parse(saved).songs[0].title, 'Other song');
+    const external = JSON.parse(saved);
+    external.songs[0].title = 'External edit';
+    saved = JSON.stringify(external);
+    await clickLocation('Reload library');
+    await waitFor(
+      "document.querySelector('.song-name')?.textContent === 'External edit'",
+    );
+    await clickLocation('Use default folder');
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('.library-location button')).find(button => button.textContent === 'Replace current library' && !button.disabled)",
+    );
+    await clickLocation('Replace current library');
+    await waitFor("document.querySelectorAll('.song-row').length === 3");
+    assert.equal(libraryPath, 'device/library.json');
+    assert.equal(saved, originalLibrary);
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     for (const width of [1420, 1000, 390]) {
       window.setSize(width, 900);
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -524,7 +667,7 @@ app.whenReady().then(async () => {
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, and responsive layout.',
     );
     app.quit();
   } catch (error) {
