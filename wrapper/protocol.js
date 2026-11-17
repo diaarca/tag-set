@@ -6,6 +6,7 @@
         normalizeVolume: false,
         githubRepository: '',
         githubBranch: 'main',
+        language: 'en',
       };
     if (
       !value ||
@@ -21,11 +22,15 @@
           branch: value.githubBranch ?? 'main',
         })
       : { repository: '', branch: 'main' };
+    const language = value.language ?? 'en';
+    if (!['en', 'fr'].includes(language))
+      throw new Error('Unsupported language.');
     return {
       version: 1,
       normalizeVolume: value.normalizeVolume,
       githubRepository: config.repository,
       githubBranch: config.branch,
+      language,
     };
   }
   function validateGitHubConfig(value) {

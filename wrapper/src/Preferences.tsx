@@ -8,6 +8,7 @@ import {
 import type { Preferences } from '../protocol.js';
 import '../protocol.js';
 import { request } from './host.js';
+import { translate } from './i18n';
 
 const validate = globalThis.tagsetProtocol.validatePreferences;
 const Context = createContext<{
@@ -22,6 +23,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    document.documentElement.lang = preferences.language;
+  }, [preferences.language]);
   useEffect(() => {
     let cancelled = false;
     void request('readPreferences')
@@ -73,4 +77,11 @@ export function usePreferences() {
   const value = useContext(Context);
   if (!value) throw new Error('Settings provider is unavailable.');
   return value;
+}
+export function useTranslation() {
+  const { preferences } = usePreferences();
+  return {
+    t: (message: string, ...values: (string | number)[]) =>
+      translate(preferences.language, message, ...values),
+  };
 }

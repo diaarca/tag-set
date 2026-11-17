@@ -1,3 +1,4 @@
+import { useTranslation } from './Preferences';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { Library, SongDetails, Tag } from '../../shared/types.js';
 import { api } from './api';
@@ -37,6 +38,7 @@ function TagPicker({
   run: ReturnType<typeof useAction>['run'];
   onAssign(id: number): Promise<void>;
 }) {
+  const { t } = useTranslation();
   const listId = useId();
   const list = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
@@ -100,7 +102,7 @@ function TagPicker({
             open && selected >= 0 ? `${listId}-${selected}` : undefined
           }
           autoComplete="off"
-          placeholder="Search or create a tag…"
+          placeholder={t('Search or create a tag…')}
           maxLength={200}
           value={query}
           disabled={busy}
@@ -134,7 +136,7 @@ function TagPicker({
           }}
         />
         <button disabled={busy || selected < 0}>
-          {choices[selected]?.id === 0 ? 'Create & add' : 'Add tag'}
+          {choices[selected]?.id === 0 ? t('Create & add') : t('Add tag')}
         </button>
       </form>
       {open && (
@@ -157,11 +159,11 @@ function TagPicker({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => assign(index)}
             >
-              {choice.id ? choice.name : `Create “${choice.name}”`}
+              {choice.id ? choice.name : t('Create “{0}”', choice.name)}
             </button>
           ))}
           {!choices.length && (
-            <p className="field-note">No available tags match.</p>
+            <p className="field-note">{t('No available tags match.')}</p>
           )}
         </div>
       )}
@@ -180,6 +182,7 @@ function DeleteButton({
   busy: boolean;
   onDelete(): void;
 }) {
+  const { t } = useTranslation();
   const [confirm, setConfirm] = useState(false);
   return (
     <div className="delete-area">
@@ -193,10 +196,10 @@ function DeleteButton({
               className="danger"
               onClick={onDelete}
             >
-              Confirm deletion
+              {t('Confirm deletion')}
             </button>
             <button type="button" onClick={() => setConfirm(false)}>
-              Keep it
+              {t('Keep it')}
             </button>
           </div>
         </>
@@ -228,6 +231,7 @@ export function SongEditor({
   onDeleted(id: number): void;
   onOpenTag(id: number): void;
 }) {
+  const { t } = useTranslation();
   const [details, setDetails] = useState<SongDetails>();
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -303,32 +307,33 @@ export function SongEditor({
   if (loadError)
     return (
       <p role="alert" className="notice error">
-        {loadError}
+        {t(loadError)}
       </p>
     );
   if (id !== undefined && !details)
-    return <p className="muted">Loading song…</p>;
+    return <p className="muted">{t('Loading song…')}</p>;
   return (
     <>
       <p className="form-intro">
-        A YouTube link, a title, and the artists behind it. Your library takes
-        it from there.
+        {t(
+          'A YouTube link, a title, and the artists behind it. Your library takes it from there.',
+        )}
       </p>
       <form onSubmit={submit}>
         <fieldset disabled={busy}>
           <label>
-            YouTube / YouTube Music URL
+            {t('YouTube / YouTube Music URL')}
             <input
               required
               type="url"
               maxLength={2048}
               value={url}
               onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://music.youtube.com/watch?v=…"
+              placeholder={t('https://music.youtube.com/watch?v=…')}
             />
           </label>
           <label>
-            Song title
+            {t('Song title')}
             <input
               required
               maxLength={500}
@@ -337,11 +342,12 @@ export function SongEditor({
                 setTitle(event.target.value);
                 setSaved(false);
               }}
-              placeholder="What’s this song called?"
+              placeholder={t('What’s this song called?')}
             />
           </label>
           <label>
-            Artists <span className="field-hint">one per line</span>
+            {t('Artists ')}
+            <span className="field-hint">{t('one per line')}</span>
             <textarea
               required
               rows={2}
@@ -350,24 +356,25 @@ export function SongEditor({
                 setArtists(event.target.value);
                 setSaved(false);
               }}
-              placeholder="Daft Punk"
+              placeholder={t('Daft Punk')}
             />
           </label>
           <p className="field-note">
-            Each artist gets a tag automatically. Artist credits stay separate
-            from tag names.
+            {t(
+              'Each artist gets a tag automatically. Artist credits stay separate from tag names.',
+            )}
           </p>
           <div className="button-row">
             <button className="primary" type="submit">
               {busy
-                ? 'Saving…'
+                ? t('Saving…')
                 : id === undefined
-                  ? 'Add to library'
-                  : 'Save song'}
+                  ? t('Add to library')
+                  : t('Save song')}
             </button>
             {saved && (
               <span role="status" className="success-text">
-                Saved.
+                {t('Saved.')}
               </span>
             )}
           </div>
@@ -375,15 +382,16 @@ export function SongEditor({
       </form>
       {error && (
         <div className="notice error" role="alert">
-          {error}
+          {t(error)}
         </div>
       )}
       {details && (
         <section className="editor-section">
-          <h3>Tags on this song</h3>
+          <h3>{t('Tags on this song')}</h3>
           <p className="field-note">
-            Remove direct assignments here. Inherited membership follows the
-            linked tag relationships.
+            {t(
+              'Remove direct assignments here. Inherited membership follows the linked tag relationships.',
+            )}
           </p>
           <ul className="membership-list">
             {details.memberships.map((member) => (
@@ -396,11 +404,11 @@ export function SongEditor({
                     # {name(member.tagId)}
                   </button>
                   <div className="membership-sources">
-                    {member.artist && <span>Artist tag</span>}
-                    {member.manual && <span>Added directly</span>}
+                    {member.artist && <span>{t('Artist tag')}</span>}
+                    {member.manual && <span>{t('Added directly')}</span>}
                     {member.inheritedVia.map((child) => (
                       <span key={child}>
-                        Via{' '}
+                        {t('Via')}{' '}
                         <button
                           className="text-button"
                           onClick={() => onOpenTag(child)}
@@ -415,7 +423,7 @@ export function SongEditor({
                   <button
                     className="icon-button"
                     disabled={busy}
-                    aria-label={`Remove direct ${name(member.tagId)} tag`}
+                    aria-label={t('Remove direct {0} tag', name(member.tagId))}
                     onClick={() =>
                       void run(async () => {
                         await api(
@@ -433,7 +441,7 @@ export function SongEditor({
             ))}
           </ul>
           <TagPicker
-            label="Tag to assign"
+            label={t('Tag to assign')}
             tags={library.tags}
             available={available}
             busy={busy}
@@ -444,8 +452,10 @@ export function SongEditor({
             }}
           />
           <DeleteButton
-            label="Delete song"
-            explanation="Remove this song and its assignments from your library? Tags and the original YouTube video will remain."
+            label={t('Delete song')}
+            explanation={t(
+              'Remove this song and its assignments from your library? Tags and the original YouTube video will remain.',
+            )}
             busy={busy}
             onDelete={() =>
               void run(async () => {
@@ -475,6 +485,7 @@ export function TagEditor({
   onDeleted(): void;
   onOpenTag(id: number): void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(tag?.name ?? '');
   const [saved, setSaved] = useState(false);
   const { busy, error, run } = useAction();
@@ -495,10 +506,13 @@ export function TagEditor({
           <button className="tag-link" onClick={() => onOpenTag(item.id)}>
             # {item.name}
           </button>
-          <span>{item.songCount} songs</span>
+          <span>
+            {item.songCount}
+            {t(' songs')}
+          </span>
           <button
             className="icon-button"
-            aria-label={`Unlink ${item.name}`}
+            aria-label={t('Unlink {0}', item.name)}
             disabled={busy}
             onClick={() =>
               void run(async () => {
@@ -526,7 +540,7 @@ export function TagEditor({
     );
     return (
       <TagPicker
-        label={parent ? 'Parent tag' : 'Child tag'}
+        label={parent ? t('Parent tag') : t('Child tag')}
         tags={library.tags}
         available={options}
         busy={busy}
@@ -544,8 +558,9 @@ export function TagEditor({
   return (
     <>
       <p className="form-intro">
-        Tags are living collections. Connect them to bring whole branches of
-        your library together.
+        {t(
+          'Tags are living collections. Connect them to bring whole branches of your library together.',
+        )}
       </p>
       <form
         onSubmit={(event) => {
@@ -567,11 +582,11 @@ export function TagEditor({
       >
         <fieldset disabled={busy}>
           <label>
-            Tag name
+            {t('Tag name')}
             <input
               required
               maxLength={200}
-              placeholder="A genre, an artist, a feeling…"
+              placeholder={t('A genre, an artist, a feeling…')}
               value={name}
               onChange={(event) => {
                 setName(event.target.value);
@@ -581,11 +596,11 @@ export function TagEditor({
           </label>
           <div className="button-row">
             <button className="primary">
-              {tag ? 'Save name' : 'Create tag'}
+              {tag ? t('Save name') : t('Create tag')}
             </button>
             {saved && (
               <span role="status" className="success-text">
-                Saved.
+                {t('Saved.')}
               </span>
             )}
           </div>
@@ -593,14 +608,14 @@ export function TagEditor({
       </form>
       {error && (
         <p className="notice error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       {tag && (
         <>
           <section className="editor-section">
             <div className="section-title">
-              <h3>Parent tags</h3>
+              <h3>{t('Parent tags')}</h3>
               <button
                 className="text-button"
                 disabled={busy}
@@ -613,31 +628,37 @@ export function TagEditor({
                   })
                 }
               >
-                {tag.pinned ? 'Unpin tag' : 'Pin tag ↑'}
+                {tag.pinned ? t('Unpin tag') : t('Pin tag ↑')}
               </button>
             </div>
             <p className="field-note">
-              Songs in “{tag.name}” also belong to these tags.
+              {t('Songs in “{0}” also belong to these tags.', tag.name)}
             </p>
             {relationshipList(parents, true)}
             {relationshipForm(true)}
           </section>
           <section className="editor-section">
-            <h3>Child tags</h3>
+            <h3>{t('Child tags')}</h3>
             <p className="field-note">
-              “{tag.name}” includes every song in these tags and their
-              descendants.
+              {t(
+                '“{0}” includes every song in these tags and their descendants.',
+                tag.name,
+              )}
             </p>
             {relationshipList(children, false)}
             {relationshipForm(false)}
           </section>
           <p className="field-note">
-            Multiple parents are welcome. Relationships that create a loop are
-            rejected.
+            {t(
+              'Multiple parents are welcome. Relationships that create a loop are rejected.',
+            )}
           </p>
           <DeleteButton
-            label="Delete tag"
-            explanation={`Delete “${tag.name}” and all its relationships and assignments? Songs and other tags will remain. Its children will not be reconnected.`}
+            label={t('Delete tag')}
+            explanation={t(
+              'Delete “{0}” and all its relationships and assignments? Songs and other tags will remain. Its children will not be reconnected.',
+              tag.name,
+            )}
             busy={busy}
             onDelete={() =>
               void run(async () => {

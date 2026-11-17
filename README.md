@@ -53,7 +53,7 @@ nix run .#ios -- --device DEVICE_ID --allow-provisioning-updates
 
 ## Settings
 
-Open **Settings** in the sidebar. Desktop loudness normalization reduces loud tracks using available YouTube metadata; it is unavailable on iOS.
+Open **Settings** in the sidebar. Choose English (default) or French for the interface. Desktop loudness normalization reduces loud tracks using available YouTube metadata; it is unavailable on iOS.
 
 For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. Use **Pull from GitHub** before **Push to GitHub**, including before the first push to an empty library repository. A private repository keeps your library private. No Git installation is needed.
 

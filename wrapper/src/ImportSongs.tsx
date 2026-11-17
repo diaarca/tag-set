@@ -1,3 +1,4 @@
+import { useTranslation } from './Preferences';
 import { useState, type FormEvent } from 'react';
 import type {
   CatalogSong,
@@ -19,6 +20,7 @@ export function ImportSongs({
   onManual(): void;
   onPlaylistImported(result: PlaylistImportResult): void;
 }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'search' | 'link' | 'playlist'>('search');
   const [tagName, setTagName] = useState('');
   const [query, setQuery] = useState('');
@@ -69,10 +71,15 @@ export function ImportSongs({
   return (
     <>
       <p className="form-intro">
-        Search YouTube Music, paste a song link, or import a playlist as a tag.
-        Titles, artists, and their tags come along automatically.
+        {t(
+          'Search YouTube Music, paste a song link, or import a playlist as a tag. Titles, artists, and their tags come along automatically.',
+        )}
       </p>
-      <div className="import-modes" role="group" aria-label="How to add music">
+      <div
+        className="import-modes"
+        role="group"
+        aria-label={t('How to add music')}
+      >
         <button
           aria-pressed={mode === 'search'}
           disabled={busy}
@@ -82,7 +89,7 @@ export function ImportSongs({
             setError('');
           }}
         >
-          Search music
+          {t('Search music')}
         </button>
         <button
           aria-pressed={mode === 'link'}
@@ -93,7 +100,7 @@ export function ImportSongs({
             setError('');
           }}
         >
-          Paste a link
+          {t('Paste a link')}
         </button>
         <button
           aria-pressed={mode === 'playlist'}
@@ -104,7 +111,7 @@ export function ImportSongs({
             setError('');
           }}
         >
-          Import playlist
+          {t('Import playlist')}
         </button>
       </div>
       {mode === 'search' ? (
@@ -112,13 +119,13 @@ export function ImportSongs({
           <form onSubmit={search}>
             <fieldset disabled={busy}>
               <label>
-                Search YouTube Music
+                {t('Search YouTube Music')}
                 <input
                   required
                   maxLength={200}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Song title, artist, or both…"
+                  placeholder={t('Song title, artist, or both…')}
                 />
               </label>
               <button
@@ -126,18 +133,18 @@ export function ImportSongs({
                 className="primary"
                 disabled={!query.trim()}
               >
-                {busy ? 'Working…' : 'Search'}
+                {busy ? t('Working…') : t('Search')}
               </button>
             </fieldset>
           </form>
           {searched && results.length === 0 && (
             <p className="notice" role="status">
-              No songs found. Try another title or artist.
+              {t('No songs found. Try another title or artist.')}
             </p>
           )}
           <ul
             className="catalog-results"
-            aria-label="YouTube Music search results"
+            aria-label={t('YouTube Music search results')}
           >
             {results.map((track) => {
               const existing = library.songs.find(
@@ -154,9 +161,13 @@ export function ImportSongs({
                     onClick={() =>
                       existing ? onImported(existing.id) : importResult(track)
                     }
-                    aria-label={`${existing ? 'Open' : 'Import'} ${track.title}`}
+                    aria-label={t(
+                      '{0} {1}',
+                      existing ? t('Open') : t('Import'),
+                      track.title,
+                    )}
                   >
-                    {existing ? 'In library ↗' : '+ Add'}
+                    {existing ? t('In library ↗') : t('+ Add')}
                   </button>
                 </li>
               );
@@ -179,32 +190,33 @@ export function ImportSongs({
         >
           <fieldset disabled={busy}>
             <label>
-              Public YouTube Music playlist URL
+              {t('Public YouTube Music playlist URL')}
               <input
                 required
                 type="url"
                 maxLength={2048}
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://music.youtube.com/playlist?list=…"
+                placeholder={t('https://music.youtube.com/playlist?list=…')}
               />
             </label>
             <label>
-              Tag name <span className="field-hint">optional</span>
+              {t('Tag name ')}
+              <span className="field-hint">{t('optional')}</span>
               <input
                 maxLength={200}
                 value={tagName}
                 onChange={(event) => setTagName(event.target.value)}
-                placeholder="Use the playlist title"
+                placeholder={t('Use the playlist title')}
               />
             </label>
             <p className="field-note">
-              Songs are added to this tag. Existing songs and tags are reused;
-              your edits are preserved. Unavailable tracks are skipped.
-              Reimporting adds songs without removing existing assignments.
+              {t(
+                'Songs are added to this tag. Existing songs and tags are reused; your edits are preserved. Unavailable tracks are skipped. Reimporting adds songs without removing existing assignments.',
+              )}
             </p>
             <button className="primary">
-              {busy ? 'Importing playlist…' : 'Import as tag'}
+              {busy ? t('Importing playlist…') : t('Import as tag')}
             </button>
           </fieldset>
         </form>
@@ -222,36 +234,36 @@ export function ImportSongs({
         >
           <fieldset disabled={busy}>
             <label>
-              YouTube / YouTube Music song URL
+              {t('YouTube / YouTube Music song URL')}
               <input
                 required
                 type="url"
                 maxLength={2048}
                 value={url}
                 onChange={(event) => setUrl(event.target.value)}
-                placeholder="https://music.youtube.com/watch?v=…"
+                placeholder={t('https://music.youtube.com/watch?v=…')}
               />
             </label>
             <button className="primary" type="submit">
-              {busy ? 'Importing…' : 'Import song'}
+              {busy ? t('Importing…') : t('Import song')}
             </button>
           </fieldset>
         </form>
       )}
       {error && (
         <p className="notice error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       {busy && (
         <p className="field-note" role="status">
-          Connecting to YouTube Music…
+          {t('Connecting to YouTube Music…')}
         </p>
       )}
       <p className="field-note import-footer">
-        Can’t find the right details?{' '}
+        {t('Can’t find the right details?')}{' '}
         <button disabled={busy} className="text-button" onClick={onManual}>
-          Enter them manually
+          {t('Enter them manually')}
         </button>
       </p>
     </>

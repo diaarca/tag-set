@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import { request } from './host';
-import { usePreferences } from './Preferences';
+import { usePreferences, useTranslation } from './Preferences';
 
 export function GitHubSharing({ onImported }: { onImported(): void }) {
+  const { t } = useTranslation();
   const { preferences, busy: saving, save } = usePreferences();
   const [repository, setRepository] = useState(preferences.githubRepository);
   const [branch, setBranch] = useState(preferences.githubBranch);
@@ -53,11 +54,11 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
     !!token;
   return (
     <section className="editor-section">
-      <h3>GitHub library sharing</h3>
+      <h3>{t('GitHub library sharing')}</h3>
       <p className="field-note">
-        Use your own initialized repository and a fine-grained token with
-        Contents read/write permission for that repository. A private repository
-        keeps your library private.
+        {t(
+          'Use your own initialized repository and a fine-grained token with Contents read/write permission for that repository. A private repository keeps your library private.',
+        )}
       </p>
       <form
         onSubmit={(event) => {
@@ -83,10 +84,10 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
       >
         <fieldset disabled={busy || saving}>
           <label>
-            Repository
+            {t('Repository')}
             <input
-              aria-label="GitHub repository"
-              placeholder="owner/repo"
+              aria-label={t('GitHub repository')}
+              placeholder={t('owner/repo')}
               value={repository}
               onChange={(event) => setRepository(event.target.value)}
               required
@@ -94,9 +95,9 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
             />
           </label>
           <label>
-            Branch
+            {t('Branch')}
             <input
-              aria-label="GitHub branch"
+              aria-label={t('GitHub branch')}
               value={branch}
               onChange={(event) => setBranch(event.target.value)}
               required
@@ -104,22 +105,22 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
             />
           </label>
           <label>
-            Personal access token
+            {t('Personal access token')}
             <input
-              aria-label="GitHub token"
+              aria-label={t('GitHub token')}
               type="password"
               autoComplete="off"
               placeholder={
                 hasToken
-                  ? 'Token saved; leave blank to keep it'
-                  : 'GitHub token'
+                  ? t('Token saved; leave blank to keep it')
+                  : t('GitHub token')
               }
               value={token}
               onChange={(event) => setToken(event.target.value)}
               maxLength={1024}
             />
           </label>
-          <button type="submit">Save connection</button>
+          <button type="submit">{t('Save connection')}</button>
           {hasToken && (
             <button
               type="button"
@@ -132,15 +133,15 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
                 })
               }
             >
-              Forget token
+              {t('Forget token')}
             </button>
           )}
         </fieldset>
       </form>
       <p className="field-note">
-        Pull merges additions and keeps local edits. Deletions do not propagate.
-        Push publishes your current library as tagset-library.json. Pull before
-        pushing in each session; newer remote changes are rejected.
+        {t(
+          'Pull merges additions and keeps local edits. Deletions do not propagate. Push publishes your current library as tagset-library.json. Pull before pushing in each session; newer remote changes are rejected.',
+        )}
       </p>
       <div className="button-row">
         <button
@@ -167,7 +168,7 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
             })
           }
         >
-          Pull from GitHub
+          {t('Pull from GitHub')}
         </button>
         <button
           disabled={busy || saving || changed || !hasToken || sha === undefined}
@@ -185,22 +186,22 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
             })
           }
         >
-          Push to GitHub
+          {t('Push to GitHub')}
         </button>
       </div>
       {busy && (
         <p role="status" className="field-note">
-          Working…
+          {t('Working…')}
         </p>
       )}
       {notice && (
         <p role="status" className="notice">
-          {notice}
+          {t(notice)}
         </p>
       )}
       {error && (
         <p role="alert" className="notice error">
-          {error}
+          {t(error)}
         </p>
       )}
     </section>

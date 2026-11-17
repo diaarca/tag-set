@@ -28,4 +28,5 @@ export interface Preferences {
   normalizeVolume: boolean;
   githubRepository: string;
   githubBranch: string;
+  language: 'en' | 'fr';
 }

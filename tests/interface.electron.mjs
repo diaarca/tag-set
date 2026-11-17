@@ -414,6 +414,41 @@ app.whenReady().then(async () => {
     await evaluate(
       'document.querySelector(\'[aria-label="Close dialog"]\').click()',
     );
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Language"]:not(:disabled)\')',
+    );
+    await evaluate(`const language = document.querySelector('[aria-label="Language"]');
+      language.value = 'fr'; language.dispatchEvent(new Event('change', { bubbles: true }));`);
+    await waitFor(
+      "document.documentElement.lang === 'fr' && document.querySelector('#modal-title')?.textContent === 'Paramètres'",
+    );
+    assert.equal(JSON.parse(preferences).language, 'fr');
+    assert.ok(
+      await evaluate(
+        "Array.from(document.querySelectorAll('.song-name')).some(item => item.textContent === 'Song 1')",
+      ),
+    );
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor(
+      "document.documentElement.lang === 'fr' && document.querySelectorAll('.song-row').length === 3",
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.all-songs .nav-name').textContent",
+      ),
+      'Tous les morceaux',
+    );
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Langue"]:not(:disabled)\')',
+    );
+    await evaluate(`const languageAgain = document.querySelector('[aria-label="Langue"]');
+      languageAgain.value = 'en'; languageAgain.dispatchEvent(new Event('change', { bubbles: true }));`);
+    await waitFor("document.documentElement.lang === 'en'");
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     for (const width of [1420, 1000, 390]) {
       window.setSize(width, 900);
       await new Promise((resolve) => setTimeout(resolve, 50));
