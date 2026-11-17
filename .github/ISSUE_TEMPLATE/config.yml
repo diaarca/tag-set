@@ -1,5 +1,0 @@
-blank_issues_enabled: true
-contact_links:
-  - name: Report a vulnerability privately
-    url: https://github.com/diaarca/tag-set/blob/main/SECURITY.md
-    about: Read the security policy; do not publish credentials or exploit details.

@@ -14,14 +14,13 @@ npm ci
 npm start
 ```
 
-Direnv loads the same environment automatically. Nix provides Node.js, Electron, Gitleaks, and XcodeGen on macOS. Quit fully with **Command-Q** before relaunching changes on Mac.
+Direnv loads the same environment automatically. Nix provides Node.js, Electron, and XcodeGen on macOS. Quit fully with **Command-Q** before relaunching changes on Mac.
 
 | Command                 | Usage                                                                              |
 | ----------------------- | ---------------------------------------------------------------------------------- |
 | `npm start`             | Build and launch the desktop app.                                                  |
 | `npm run build`         | Build the shared interface into `wrapper/bundle`.                                  |
 | `npm run check`         | Check types, lint, formatting, tests, and build.                                   |
-| `npm run security`      | Scan repository files/history for secrets and audit npm dependencies.              |
 | `npm run test:desktop`  | Run isolated Electron navigation and interface checks; requires a desktop session. |
 | `nix run .#dmg`         | Build an Apple Silicon macOS disk image.                                           |
 | `nix run .#windows`     | Build a Windows x64 installer.                                                     |
