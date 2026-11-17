@@ -1,4 +1,14 @@
 export const french: Record<string, string> = {
+  'Library visibility': 'Affichage de la bibliothèque',
+  'Minimum songs for unpinned artist tags':
+    'Nombre minimum de morceaux pour les tags d’artistes non épinglés',
+  'Zero shows every artist tag. Pinned tags and created tags are always shown. Hidden tags remain available in editors and keep their songs.':
+    'Zéro affiche tous les tags d’artistes. Les tags épinglés et les tags créés restent affichés. Les tags masqués restent disponibles dans les éditeurs et conservent leurs morceaux.',
+  'Save visibility': 'Enregistrer l’affichage',
+  'No tags meet the visibility settings.':
+    'Aucun tag ne correspond aux paramètres d’affichage.',
+  'The artist song minimum must be a whole number from 0 to 50000.':
+    'Le nombre minimum de morceaux doit être un entier compris entre 0 et 50000.',
   '+ Add': '+ Ajouter',
   '+ Add your first song': '+ Ajouter un premier morceau',
   'A YouTube link, a title, and the artists behind it. Your library takes it from there.':

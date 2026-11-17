@@ -7,6 +7,7 @@
         githubRepository: '',
         githubBranch: 'main',
         language: 'en',
+        minimumArtistSongs: 0,
       };
     if (
       !value ||
@@ -25,12 +26,22 @@
     const language = value.language ?? 'en';
     if (!['en', 'fr'].includes(language))
       throw new Error('Unsupported language.');
+    const minimumArtistSongs = value.minimumArtistSongs ?? 0;
+    if (
+      !Number.isSafeInteger(minimumArtistSongs) ||
+      minimumArtistSongs < 0 ||
+      minimumArtistSongs > 50_000
+    )
+      throw new Error(
+        'The artist song minimum must be a whole number from 0 to 50000.',
+      );
     return {
       version: 1,
       normalizeVolume: value.normalizeVolume,
       githubRepository: config.repository,
       githubBranch: config.branch,
       language,
+      minimumArtistSongs,
     };
   }
   function validateGitHubConfig(value) {

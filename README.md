@@ -55,6 +55,8 @@ nix run .#ios -- --device DEVICE_ID --allow-provisioning-updates
 
 Open **Settings** in the sidebar. Choose English (default) or French for the interface. Desktop loudness normalization reduces loud tracks using available YouTube metadata; it is unavailable on iOS.
 
+Set a minimum song count to hide small artist tags from the sidebar. The default `0` shows all tags; pinned and created tags are always shown. Hidden tags remain available in editors.
+
 For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. Use **Pull from GitHub** before **Push to GitHub**, including before the first push to an empty library repository. A private repository keeps your library private. No Git installation is needed.
 
 Pull merges additions and preserves local edits; deletions do not propagate. Push writes `tagset-library.json` and rejects unseen remote changes. Tokens are stored using the desktop system keychain or iOS Keychain, separately from library exports; Linux requires an available system keyring. Sharing is manual, and iCloud storage is not implemented.

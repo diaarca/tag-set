@@ -449,6 +449,60 @@ app.whenReady().then(async () => {
     await evaluate(
       'document.querySelector(\'[aria-label="Close dialog"]\').click()',
     );
+    await evaluate(
+      "Array.from(document.querySelectorAll('.tag-navigation .nav-name')).find(item => item.textContent === 'Artist').closest('button').click()",
+    );
+    await waitFor(
+      "document.querySelector('.breadcrumb strong')?.textContent === 'Artist'",
+    );
+    await evaluate(
+      "document.querySelector('.collection-actions button[aria-pressed]').click()",
+    );
+    await waitFor(
+      "document.querySelector('.collection-actions button[aria-pressed]')?.getAttribute('aria-pressed') === 'true'",
+    );
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Minimum songs for unpinned artist tags"]:not(:disabled)\')',
+    );
+    await typeInto('Minimum songs for unpinned artist tags', '4');
+    await evaluate(
+      "document.querySelector('[name=minimumArtistSongs]').form.requestSubmit()",
+    );
+    await waitFor(
+      "!document.querySelector('[name=minimumArtistSongs]').disabled",
+    );
+    assert.equal(JSON.parse(preferences).minimumArtistSongs, 4);
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
+    assert.ok((await evaluate(tagNames)).includes('Artist'));
+    await evaluate(
+      "document.querySelector('.collection-actions button[aria-pressed]').click()",
+    );
+    await waitFor(
+      "document.querySelectorAll('.tag-navigation .nav-name').length === 3",
+    );
+    assert.deepEqual(await evaluate(tagNames), ['Mood', 'Atmosphere', 'Focus']);
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor(
+      "document.querySelectorAll('.song-row').length === 3 && document.querySelectorAll('.tag-navigation .nav-name').length === 3",
+    );
+    assert.deepEqual(await evaluate(tagNames), ['Mood', 'Atmosphere', 'Focus']);
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Minimum songs for unpinned artist tags"]:not(:disabled)\')',
+    );
+    await typeInto('Minimum songs for unpinned artist tags', '0');
+    await evaluate(
+      "document.querySelector('[name=minimumArtistSongs]').form.requestSubmit()",
+    );
+    await waitFor(
+      "document.querySelectorAll('.tag-navigation .nav-name').length === 4",
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     for (const width of [1420, 1000, 390]) {
       window.setSize(width, 900);
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -470,7 +524,7 @@ app.whenReady().then(async () => {
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, and responsive layout.',
     );
     app.quit();
   } catch (error) {

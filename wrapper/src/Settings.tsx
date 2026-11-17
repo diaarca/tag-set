@@ -54,6 +54,41 @@ export function Settings({ onImported }: { onImported(): void }) {
           </p>
         )}
       </section>
+      <section className="editor-section">
+        <h3>{t('Library visibility')}</h3>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const value = new FormData(event.currentTarget).get(
+              'minimumArtistSongs',
+            );
+            void save({ ...preferences, minimumArtistSongs: Number(value) });
+          }}
+        >
+          <fieldset disabled={busy}>
+            <label>
+              {t('Minimum songs for unpinned artist tags')}
+              <input
+                key={preferences.minimumArtistSongs}
+                aria-label={t('Minimum songs for unpinned artist tags')}
+                name="minimumArtistSongs"
+                type="number"
+                min="0"
+                max="50000"
+                step="1"
+                required
+                defaultValue={preferences.minimumArtistSongs}
+              />
+            </label>
+            <p className="field-note">
+              {t(
+                'Zero shows every artist tag. Pinned tags and created tags are always shown. Hidden tags remain available in editors and keep their songs.',
+              )}
+            </p>
+            <button>{t('Save visibility')}</button>
+          </fieldset>
+        </form>
+      </section>
       <GitHubSharing
         key={`${preferences.githubRepository}/${preferences.githubBranch}`}
         onImported={onImported}

@@ -1,4 +1,4 @@
-import { useTranslation } from './Preferences';
+import { usePreferences, useTranslation } from './Preferences';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { Library, Song, Tag } from '../../shared/types.js';
 import { api, exportLibrary } from './api';
@@ -13,6 +13,7 @@ const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
 
 export function App() {
   const { t } = useTranslation();
+  const { preferences } = usePreferences();
   const [library, setLibrary] = useState<Library>(emptyLibrary);
   const [songs, setSongs] = useState<Song[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -83,8 +84,12 @@ export function App() {
     setSelected(id);
     setSongSearch('');
   };
-  const filteredTags = library.tags.filter((tag) =>
-    tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
+  const filteredTags = library.tags.filter(
+    (tag) =>
+      (tag.pinned ||
+        !tag.artist ||
+        tag.songCount >= preferences.minimumArtistSongs) &&
+      tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
   const tagGroups = [
     { label: 'PINNED TAGS', tags: filteredTags.filter((tag) => tag.pinned) },
@@ -201,9 +206,11 @@ export function App() {
             <p className="sidebar-hint">
               {tagSearch
                 ? t('No matching tags.')
-                : t(
-                    'Your artists, genres, and little obsessions will live here.',
-                  )}
+                : library.tags.length
+                  ? t('No tags meet the visibility settings.')
+                  : t(
+                      'Your artists, genres, and little obsessions will live here.',
+                    )}
             </p>
           )}
         </nav>

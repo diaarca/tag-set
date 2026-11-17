@@ -29,4 +29,5 @@ export interface Preferences {
   githubRepository: string;
   githubBranch: string;
   language: 'en' | 'fr';
+  minimumArtistSongs: number;
 }

@@ -26,6 +26,18 @@ test('settings persist independently and invalid writes preserve the saved prefe
       globalThis.tagsetProtocol.validatePreferences(null).normalizeVolume,
       false,
     );
+    const validate = globalThis.tagsetProtocol.validatePreferences;
+    assert.equal(validate(null).minimumArtistSongs, 0);
+    assert.equal(
+      validate({ ...settings, minimumArtistSongs: 2 }).minimumArtistSongs,
+      2,
+    );
+    for (const minimumArtistSongs of [-1, 1.5, 50001, '2'])
+      await assert.rejects(
+        storage.write(JSON.stringify({ ...settings, minimumArtistSongs })),
+        /whole number/,
+      );
+    assert.deepEqual(JSON.parse((await storage.read())!), settings);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
