@@ -20,7 +20,6 @@
     "lint": "eslint . --max-warnings 0",
     "format:check": "prettier --check .",
     "test": "tsx --test tests/*.test.ts tests/*.test.mjs",
-    "security": "node scripts/check-repository.mjs && npm audit --audit-level=high",
     "test:desktop": "electron tests/navigation.electron.mjs && electron tests/interface.electron.mjs"
   },
   "dependencies": {

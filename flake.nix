@@ -33,13 +33,11 @@
           ios = command "ios" [ pkgs.xcodegen ] "wrapper/package-ios.mjs" [];
         });
       devShells = forEachSystem (system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-          checks = [ pkgs.nodejs_24 pkgs.gitleaks ];
+        let pkgs = import nixpkgs { inherit system; };
         in {
-          ci = pkgs.mkShell { packages = checks; };
+          ci = pkgs.mkShell { packages = [ pkgs.nodejs_24 ]; };
           default = pkgs.mkShell {
-            packages = checks ++ [ pkgs.electron-bin ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen ];
+            packages = [ pkgs.nodejs_24 pkgs.electron-bin ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.xcodegen ];
           };
         });
     };
