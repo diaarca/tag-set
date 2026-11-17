@@ -326,54 +326,7 @@ a {
   padding-right: 6px;
 }
 .collection-header {
-  display: flex;
-  gap: 25px;
-  align-items: center;
   padding: 40px 0 29px;
-}
-.collection-art {
-  width: 150px;
-  height: 150px;
-  background: #b6d58b;
-  flex-shrink: 0;
-  border-radius: 7px;
-  position: relative;
-  overflow: hidden;
-  color: #203224;
-  box-shadow: 0 15px 40px #0002;
-}
-.collection-art span {
-  font-family: Georgia, serif;
-  font-size: 106px;
-  font-style: italic;
-  position: absolute;
-  left: 48px;
-  top: -5px;
-}
-.orbit {
-  width: 165px;
-  height: 80px;
-  position: absolute;
-  border: 1px solid #59783b75;
-  border-radius: 100%;
-  left: -8px;
-  top: 38px;
-  transform: rotate(-40deg);
-}
-.orbit-two {
-  transform: rotate(20deg);
-}
-.orbit-three {
-  transform: rotate(80deg);
-}
-.collection-art i {
-  width: 11px;
-  height: 11px;
-  position: absolute;
-  border-radius: 100%;
-  background: #30472c;
-  left: 120px;
-  top: 30px;
 }
 .collection-intro {
   min-width: 0;
@@ -1033,17 +986,6 @@ textarea {
   .main-panel {
     padding: 0 24px;
   }
-  .collection-art {
-    width: 110px;
-    height: 120px;
-  }
-  .collection-art span {
-    left: 27px;
-    top: -19px;
-  }
-  .collection-header {
-    gap: 18px;
-  }
   .collection-intro p {
     font-size: 11px;
   }
@@ -1086,10 +1028,6 @@ textarea {
   }
   .player-panel .queue-list {
     max-height: 200px;
-  }
-  .collection-art {
-    width: 120px;
-    height: 120px;
   }
 }
 @media (max-width: 540px) {
@@ -1151,14 +1089,6 @@ textarea {
   }
   .collection-header {
     padding: 26px 0;
-  }
-  .collection-art {
-    width: 90px;
-    height: 106px;
-  }
-  .collection-art span {
-    left: 21px;
-    font-size: 90px;
   }
   .collection-intro p {
     margin-bottom: 10px;

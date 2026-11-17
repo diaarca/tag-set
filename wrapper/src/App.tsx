@@ -289,13 +289,6 @@ export function App() {
           </button>
         </header>
         <section className="collection-header">
-          <div className="collection-art" aria-hidden="true">
-            <div className="orbit orbit-one" />
-            <div className="orbit orbit-two" />
-            <div className="orbit orbit-three" />
-            <span>{selected === null ? t('s') : '#'}</span>
-            <i />
-          </div>
           <div className="collection-intro">
             <span className="eyebrow">
               {selected === null
