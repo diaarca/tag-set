@@ -88,7 +88,6 @@ export const french: Record<string, string> = {
     'Bibliothèque enregistrée sur cet appareil · Lecture par YouTube Music',
   'Loading song…': 'Chargement du morceau…',
   'Loading tag…': 'Chargement du tag…',
-  'Local by design': 'Tout reste local',
   'Make the first connection.': 'Créez un premier lien.',
   'Multiple parents are welcome. Relationships that create a loop are rejected.':
     'Plusieurs parents sont possibles. Les liens créant une boucle sont refusés.',
@@ -200,7 +199,6 @@ export const french: Record<string, string> = {
   'YouTube Music website': 'Site YouTube Music',
   'Your artists, genres, and little obsessions will live here.':
     'Vos artistes, genres et petites obsessions trouveront leur place ici.',
-  'Your library. Your device.': 'Votre bibliothèque. Votre appareil.',
   'Your songs': 'Vos morceaux',
   'automatic playlist': 'playlist automatique',
   'one per line': 'un par ligne',

@@ -224,13 +224,6 @@ export function App() {
         >
           {t('Settings')}
         </button>
-        <div className="local-label">
-          <span className="live-dot" />
-          <div>
-            {t('Local by design')}
-            <small>{t('Your library. Your device.')}</small>
-          </div>
-        </div>
       </aside>
 
       <main className="main-panel">
