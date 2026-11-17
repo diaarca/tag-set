@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Library, Song } from '../../shared/types.js';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import type { Library, Song, Tag } from '../../shared/types.js';
 import { api, exportLibrary } from './api';
 import { Player, type PlayerHandle } from './Player';
 import { Modal } from './Modal';
@@ -82,6 +82,17 @@ export function App() {
   const filteredTags = library.tags.filter((tag) =>
     tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
+  const tagGroups = [
+    { label: 'PINNED TAGS', tags: filteredTags.filter((tag) => tag.pinned) },
+    {
+      label: 'CREATED TAGS',
+      tags: filteredTags.filter((tag) => !tag.pinned && !tag.artist),
+    },
+    {
+      label: 'ARTISTS',
+      tags: filteredTags.filter((tag) => !tag.pinned && tag.artist),
+    },
+  ];
   const visibleSongs = songs.filter((song) =>
     `${song.title} ${song.artists.join(' ')}`
       .toLowerCase()
@@ -106,21 +117,19 @@ export function App() {
       setError(error instanceof Error ? error.message : 'Could not pin tag.');
     }
   };
-  const tagList = (pinned: boolean) =>
-    filteredTags
-      .filter((tag) => tag.pinned === pinned)
-      .map((item) => (
-        <button
-          key={item.id}
-          className={`nav-item ${selected === item.id ? 'selected' : ''}`}
-          onClick={() => chooseTag(item.id)}
-          title={`${item.name} · ${item.songCount >= 2 ? 'automatic playlist' : 'tag'}`}
-        >
-          <span className="nav-symbol">{pinned ? '↗' : '#'}</span>
-          <span className="nav-name">{item.name}</span>
-          <span className="nav-count">{item.songCount}</span>
-        </button>
-      ));
+  const tagList = (tags: Tag[]) =>
+    tags.map((item) => (
+      <button
+        key={item.id}
+        className={`nav-item ${selected === item.id ? 'selected' : ''}`}
+        onClick={() => chooseTag(item.id)}
+        title={`${item.name} · ${item.songCount >= 2 ? 'automatic playlist' : 'tag'}`}
+      >
+        <span className="nav-symbol">{item.pinned ? '↗' : '#'}</span>
+        <span className="nav-name">{item.name}</span>
+        <span className="nav-count">{item.songCount}</span>
+      </button>
+    ));
 
   return (
     <div className="app-shell">
@@ -169,17 +178,16 @@ export function App() {
           />
         </label>
         <nav className="tag-navigation" aria-label="Tags">
-          {filteredTags.some((tag) => tag.pinned) && (
-            <>
-              <div className="nav-group-title">PINNED</div>
-              {tagList(true)}
-            </>
-          )}
-          <div className="nav-group-title">
-            ALL TAGS{' '}
-            <span>{filteredTags.filter((tag) => !tag.pinned).length}</span>
-          </div>
-          {tagList(false)}
+          {tagGroups
+            .filter((group) => group.tags.length)
+            .map((group) => (
+              <Fragment key={group.label}>
+                <div className="nav-group-title">
+                  {group.label} <span>{group.tags.length}</span>
+                </div>
+                {tagList(group.tags)}
+              </Fragment>
+            ))}
           {!filteredTags.length && (
             <p className="sidebar-hint">
               {tagSearch

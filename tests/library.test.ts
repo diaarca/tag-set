@@ -118,3 +118,46 @@ test('artist-generated assignments coexist with manual ones and artist credits s
   assert.equal(store.songs().length, 0);
   assert.equal(store.tags().find((tag) => tag.id === daft)!.songCount, 0);
 });
+
+test('artist tag identity survives legacy loading, renaming, emptying, and library transfer', () => {
+  const store = new LibraryStore();
+  const created = store.createTag({ name: 'Genre' });
+  const reused = store.createTag({ name: 'Guest' });
+  const song = store.saveSong(songInput(1, ['Daft Punk', 'Guest']));
+  const artist = store.tags().find((tag) => tag.name === 'Daft Punk')!.id;
+  store.updateTag(artist, { name: 'Renamed artist' });
+  store.relate(created, artist, true);
+  const legacy = {
+    ...store.snapshot(),
+    tags: store
+      .snapshot()
+      .tags.map(({ id, name, pinned }) => ({ id, name, pinned })),
+  };
+  const loaded = new LibraryStore(legacy);
+  assert.equal(loaded.tags().find((tag) => tag.id === created)!.artist, false);
+  assert.equal(loaded.tags().find((tag) => tag.id === reused)!.artist, true);
+  assert.equal(loaded.tags().find((tag) => tag.id === artist)!.artist, true);
+  loaded.updateTag(artist, { pinned: true });
+  loaded.deleteSong(song);
+  const transferred = new LibraryStore();
+  transferred.createTag({ name: 'Renamed artist' });
+  transferred.merge(loaded.exportLibrary());
+  const restored = new LibraryStore(transferred.snapshot());
+  assert.deepEqual(
+    restored.tags().map((tag) => [tag.name, tag.artist]),
+    [
+      ['Genre', false],
+      ['Guest', true],
+      ['Renamed artist', true],
+    ],
+  );
+  assert.equal(restored.songs().length, 0);
+  assert.throws(
+    () =>
+      new LibraryStore({
+        ...legacy,
+        tags: [{ ...legacy.tags[0], artist: 'yes' }, ...legacy.tags.slice(1)],
+      }),
+    /artist tag state/,
+  );
+});

@@ -2,6 +2,7 @@ export interface Tag {
   id: number;
   name: string;
   pinned: boolean;
+  artist: boolean;
   songCount: number;
 }
 export interface Song {
