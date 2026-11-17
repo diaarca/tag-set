@@ -4,6 +4,8 @@ A local music library with tags, inherited playlists, and YouTube Music playback
 
 Songs inherit artist tags. Parent tags include their descendants' songs, without duplicates or cycles. Tags support pins, renaming, and deletion. Search/import songs and playlists, play collections in order or shuffled, and transfer libraries through JSON import/export. Repeat-all is enabled by default; Space toggles playback while the app is focused.
 
+On phones, a fixed bottom bar shows the song and playback controls. Tap its cover/title to open Now Playing; use **Back to library** or swipe down from the top of the panel to return. Desktop and iPad layouts keep the existing player panel. This also prepares the interface for Android phones; Android packaging is not yet available.
+
 ## Run
 
 ```sh
@@ -70,7 +72,7 @@ Default libraries use `Setwise Wrapper/library.json` in Electron's application-d
 
 YouTube Music stays hidden behind the player. **Open YouTube Music** provides sign-in and playback prompts. Playback and catalog access require internet; the unofficial integration may need updates when YouTube changes. Hiding the website does not guarantee audio-only downloads or background playback.
 
-macOS playback and signed iPhone installation have been verified. Windows/Linux runtime behavior and iPhone background playback still need device testing. Desktop packages have no distribution signing or notarization, so downloaded copies may trigger OS security prompts.
+macOS playback and signed iPhone installation have been verified. Windows/Linux runtime behavior still needs device testing. Music currently stops when locking the iPhone; background playback remains a known limitation. Desktop packages have no distribution signing or notarization, so downloaded copies may trigger OS security prompts.
 
 ## Contributing and license
 

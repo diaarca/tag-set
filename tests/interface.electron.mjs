@@ -664,10 +664,176 @@ app.whenReady().then(async () => {
           'block',
         );
     }
+    const desktopAgent = window.webContents.getUserAgent();
+    for (const agent of [
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
+      'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36',
+    ]) {
+      window.webContents.setUserAgent(agent);
+      window.setSize(390, 844);
+      await window.loadFile(resolve('wrapper/bundle/index.html'));
+      await waitFor(
+        "!!document.querySelector('.phone-mini-player') && document.querySelectorAll('.song-row').length === 3 && !document.querySelector('.primary.play-collection').disabled",
+      );
+      assert.equal(
+        await evaluate(
+          "getComputedStyle(document.querySelector('.player-panel')).display",
+        ),
+        'none',
+      );
+      assert.equal(
+        await evaluate(
+          "document.querySelectorAll('.phone-mini-player .icon-button:disabled').length",
+        ),
+        3,
+      );
+      assert.ok(
+        await evaluate("document.querySelector('.player-panel').inert"),
+      );
+      assert.ok(
+        await evaluate(
+          "Math.abs(document.querySelector('.phone-mini-player').getBoundingClientRect().bottom - innerHeight) < 1",
+        ),
+      );
+      await evaluate(
+        "document.querySelector('.primary.play-collection').click()",
+      );
+      await waitFor(
+        "document.querySelector('.mini-player-details strong')?.textContent === 'Song 1' && !!document.querySelector('.phone-mini-player [aria-label=Pause]')",
+      );
+      await evaluate('window.scrollTo(0, 100)');
+      const libraryScroll = await evaluate('window.scrollY');
+      await evaluate("document.querySelector('.mini-player-open').click()");
+      await waitFor(
+        "document.querySelector('.player-panel').classList.contains('phone-player-open') && getComputedStyle(document.querySelector('.main-panel')).visibility === 'hidden'",
+      );
+      assert.equal(
+        await evaluate(
+          "getComputedStyle(document.querySelector('.phone-mini-player')).position",
+        ),
+        'fixed',
+      );
+      await evaluate(
+        "document.querySelector('.phone-mini-player [aria-label=Pause]').click()",
+      );
+      await waitFor(
+        "!!document.querySelector('.phone-mini-player [aria-label=Play]')",
+      );
+      await evaluate(
+        "document.querySelector('.phone-mini-player [aria-label=Play]').click()",
+      );
+      await waitFor(
+        "!!document.querySelector('.phone-mini-player [aria-label=Pause]')",
+      );
+      await evaluate(
+        'document.querySelector(\'.phone-mini-player [aria-label="Next song"]\').click()',
+      );
+      await waitFor(
+        "document.querySelector('.now-playing h2')?.textContent === 'Song 2' && document.querySelector('.mini-player-details strong')?.textContent === 'Song 2' && !document.querySelector('[aria-label=Seek]').disabled",
+      );
+      await evaluate(
+        'document.querySelector(\'.phone-mini-player [aria-label="Previous song"]\').click()',
+      );
+      await waitFor(
+        "document.querySelector('.mini-player-details strong')?.textContent === 'Song 1' && !document.querySelector('[aria-label=Seek]').disabled",
+      );
+      await evaluate(
+        "document.querySelector('.phone-player-header button').click()",
+      );
+      await waitFor(
+        "getComputedStyle(document.querySelector('.player-panel')).display === 'none'",
+      );
+      assert.equal(await evaluate('window.scrollY'), libraryScroll);
+      assert.equal(
+        await evaluate('document.activeElement.className'),
+        'mini-player-open',
+      );
+      await evaluate("document.querySelector('.mini-player-open').click()");
+      const swipeOn = async (selector, dx, dy, scrolling = false) => {
+        await evaluate(`(() => {
+          const panel = document.querySelector('.player-panel');
+          panel.scrollTop = ${scrolling ? 100 : 0};
+          const target = document.querySelector(${JSON.stringify(selector)});
+          const start = new Event('touchstart', {bubbles:true});
+          Object.defineProperty(start, 'touches', {value:[{clientX:50,clientY:100}]});
+          target.dispatchEvent(start);
+          panel.scrollTop = 0;
+          const end = new Event('touchend', {bubbles:true});
+          Object.defineProperty(end, 'changedTouches', {value:[{clientX:50 + ${dx},clientY:100 + ${dy}}]});
+          target.dispatchEvent(end);
+        })()`);
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      };
+      const expanded =
+        "document.querySelector('.player-panel').classList.contains('phone-player-open')";
+      await swipeOn('.wrapper-cover', 150, 10);
+      assert.ok(await evaluate(expanded));
+      await swipeOn('.wrapper-cover', 0, -130);
+      assert.ok(await evaluate(expanded));
+      await swipeOn('.wrapper-cover', 0, 130, true);
+      assert.ok(await evaluate(expanded));
+      await swipeOn('[aria-label=Seek]', 0, 130);
+      assert.ok(await evaluate(expanded));
+      await swipeOn('.wrapper-cover', 0, 130);
+      await waitFor(
+        "getComputedStyle(document.querySelector('.player-panel')).display === 'none'",
+      );
+      await evaluate(
+        "document.querySelector('.mini-player-open').click(); document.querySelector('.wrapper-site-toggle').click()",
+      );
+      await waitFor(
+        "!!document.querySelector('.wrapper-site-open .wrapper-music-surface:not([hidden])')",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const layout = commands
+        .filter((command) => command.type === 'layout')
+        .at(-1);
+      assert.equal(layout.visible, true);
+      assert.ok(
+        layout.y + layout.height <=
+          (await evaluate(
+            "document.querySelector('.phone-mini-player').getBoundingClientRect().top",
+          )) +
+            1,
+      );
+      await evaluate(
+        "document.querySelector('.phone-player-header button').click()",
+      );
+      await waitFor("!document.querySelector('.wrapper-site-open')");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.equal(
+        commands.filter((command) => command.type === 'layout').at(-1).visible,
+        false,
+      );
+      window.setSize(844, 390);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.ok(
+        await evaluate(
+          "Math.abs(document.querySelector('.phone-mini-player').getBoundingClientRect().bottom - innerHeight) < 1",
+        ),
+      );
+      await evaluate("document.querySelector('.mini-player-open').click()");
+      await waitFor(
+        "getComputedStyle(document.querySelector('.player-panel')).display === 'block'",
+      );
+      await evaluate(
+        "document.querySelector('.phone-player-header button').click()",
+      );
+    }
+    window.webContents.setUserAgent(
+      'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
+    );
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor("document.querySelectorAll('.song-row').length === 3");
+    assert.equal(
+      await evaluate("!!document.querySelector('.phone-mini-player')"),
+      false,
+    );
+    window.webContents.setUserAgent(desktopAgent);
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, phone player controls/swipes/orientation, and responsive layout.',
     );
     app.quit();
   } catch (error) {
