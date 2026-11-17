@@ -19,6 +19,7 @@ interface StoredTag {
   id: number;
   name: string;
   pinned: boolean;
+  artist: boolean;
 }
 interface Assignment {
   songId: number;
@@ -89,10 +90,13 @@ export class LibraryStore {
       const row = object(value);
       if (typeof row.pinned !== 'boolean')
         throw new AppError(400, 'Invalid library pin state.');
+      if (row.artist !== undefined && typeof row.artist !== 'boolean')
+        throw new AppError(400, 'Invalid library artist tag state.');
       return {
         id: id(row.id),
         name: text(row.name, 'Tag name'),
         pinned: row.pinned,
+        artist: row.artist === true,
       };
     });
     const songIDs = new Set(songs.map((song) => song.id));
@@ -126,6 +130,12 @@ export class LibraryStore {
         throw new AppError(400, 'Invalid library assignment.');
       return { songId, tagId, origin: row.origin as Assignment['origin'] };
     });
+    const artistTags = new Set(
+      assignments
+        .filter((row) => row.origin === 'artist')
+        .map((row) => row.tagId),
+    );
+    for (const tag of tags) tag.artist ||= artistTags.has(tag.id);
     const unique = <T>(values: T[], key: (value: T) => string) => [
       ...new Map(values.map((value) => [key(value), value])).values(),
     ];
@@ -308,13 +318,16 @@ export class LibraryStore {
     this.data[kind]++;
     return value;
   }
-  private ensureTag(name: string) {
+  private ensureTag(name: string, artist = false) {
     const existing = this.data.tags.find(
       (tag) => tag.name.toLowerCase() === name.toLowerCase(),
     );
-    if (existing) return existing.id;
+    if (existing) {
+      existing.artist ||= artist;
+      return existing.id;
+    }
     const id = this.takeID('nextTagId');
-    this.data.tags.push({ id, name, pinned: false });
+    this.data.tags.push({ id, name, pinned: false, artist });
     return id;
   }
   createTag(body: unknown) {
@@ -384,7 +397,7 @@ export class LibraryStore {
       for (const artist of artists)
         this.data.assignments.push({
           songId: result,
-          tagId: this.ensureTag(artist),
+          tagId: this.ensureTag(artist, true),
           origin: 'artist',
         });
     }
@@ -456,7 +469,7 @@ export class LibraryStore {
       const previous = this.data.tags.find(
         (other) => other.name.toLowerCase() === tag.name.toLowerCase(),
       );
-      const id = previous?.id ?? this.ensureTag(tag.name);
+      const id = this.ensureTag(tag.name, tag.artist);
       tags.set(tag.id, id);
       if (!previous) this.tag(id).pinned = tag.pinned;
     }

@@ -208,6 +208,69 @@ app.whenReady().then(async () => {
     await waitFor(
       "Array.from(document.querySelectorAll('.tag-navigation button')).some(button => button.textContent.includes('Mood'))",
     );
+    const tagNames =
+      "Array.from(document.querySelectorAll('.tag-navigation .nav-name'), item => item.textContent)";
+    const groupTitles =
+      "Array.from(document.querySelectorAll('.nav-group-title'), item => item.firstChild.textContent.trim())";
+    assert.deepEqual(await evaluate(tagNames), [
+      'Mood',
+      'Atmosphere',
+      'Focus',
+      'Artist',
+    ]);
+    assert.deepEqual(await evaluate(groupTitles), [
+      'PINNED TAGS',
+      'CREATED TAGS',
+      'ARTISTS',
+    ]);
+    await typeInto('Find a tag', 'ART');
+    await waitFor(
+      "document.querySelectorAll('.tag-navigation button').length === 1",
+    );
+    assert.deepEqual(await evaluate(groupTitles), ['ARTISTS']);
+    assert.deepEqual(await evaluate(tagNames), ['Artist']);
+    await typeInto('Find a tag', '');
+    await waitFor(
+      "document.querySelectorAll('.tag-navigation button').length === 4",
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('.tag-navigation .nav-name')).find(item => item.textContent === 'Artist').closest('button').click()",
+    );
+    await waitFor(
+      "document.querySelector('.breadcrumb strong')?.textContent === 'Artist'",
+    );
+    await evaluate(
+      "document.querySelector('.collection-actions button[aria-pressed]').click()",
+    );
+    await waitFor(
+      "document.querySelector('.tag-navigation .nav-name')?.textContent === 'Artist'",
+    );
+    assert.deepEqual(await evaluate(tagNames), [
+      'Artist',
+      'Mood',
+      'Atmosphere',
+      'Focus',
+    ]);
+    assert.deepEqual(await evaluate(groupTitles), [
+      'PINNED TAGS',
+      'CREATED TAGS',
+    ]);
+    await evaluate(
+      "document.querySelector('.collection-actions button[aria-pressed]').click()",
+    );
+    await waitFor(
+      "document.querySelector('.tag-navigation .nav-name')?.textContent === 'Mood'",
+    );
+    assert.deepEqual(await evaluate(tagNames), [
+      'Mood',
+      'Atmosphere',
+      'Focus',
+      'Artist',
+    ]);
+    await evaluate("document.querySelector('.all-songs').click()");
+    await waitFor(
+      "document.querySelector('.breadcrumb strong')?.textContent === 'All songs'",
+    );
     await evaluate(
       "Math.random = () => 0; Array.from(document.querySelectorAll('.collection-actions button')).find(button => button.textContent.includes('Shuffle play')).click()",
     );
@@ -274,7 +337,7 @@ app.whenReady().then(async () => {
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag editing/pinning, persistence, export, shuffle/repeat, slider keyboard controls, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, and responsive layout.',
     );
     app.quit();
   } catch (error) {
