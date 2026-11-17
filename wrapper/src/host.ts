@@ -20,7 +20,18 @@ export type HostMessage =
       loadToken: string | null;
     }
   | { type?: 'error'; error: string };
-type Operation = 'readLibrary' | 'writeLibrary' | 'catalog' | 'exportLibrary';
+type Operation =
+  | 'readLibrary'
+  | 'writeLibrary'
+  | 'catalog'
+  | 'exportLibrary'
+  | 'readPreferences'
+  | 'writePreferences'
+  | 'hasGitHubToken'
+  | 'saveGitHubToken'
+  | 'removeGitHubToken'
+  | 'githubPull'
+  | 'githubPush';
 declare global {
   interface Window {
     tagsetHost?: {

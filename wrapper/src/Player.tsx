@@ -11,6 +11,7 @@ import type { Song } from '../../shared/types.js';
 import { emptyQueue, queueReducer } from './queue.js';
 import { send, subscribe, uniqueToken, type PlaybackMessage } from './host.js';
 import '../protocol.js';
+import { usePreferences, useTranslation } from './Preferences';
 
 export interface PlayerHandle {
   start(songs: Song[], options?: { shuffle: boolean }): void;
@@ -35,6 +36,12 @@ const emptyPlayback: PlaybackMessage = {
 };
 
 export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
+  useEffect(() => {
+    if (window.tagsetHost)
+      send({ type: 'normalization', enabled: preferences.normalizeVolume });
+  }, [preferences.normalizeVolume]);
   const [queue, dispatch] = useReducer(queueReducer, emptyQueue);
   const [playback, setPlayback] = useState(emptyPlayback);
   const [error, setError] = useState('');
@@ -340,10 +347,10 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     <aside
       ref={panel}
       className={`player-panel${websiteOpen ? ' wrapper-site-open' : ''}`}
-      aria-label="Music player"
+      aria-label={t('Music player')}
     >
       <div className="panel-heading">
-        <span className="eyebrow">NOW PLAYING</span>
+        <span className="eyebrow">{t('NOW PLAYING')}</span>
         <span className="live-dot" />
       </div>
       <div className="wrapper-cover">
@@ -351,7 +358,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
           <img
             key={image}
             src={image}
-            alt={`Cover for ${song?.title ?? 'the current song'}`}
+            alt={t('Cover for {0}', song?.title ?? t('the current song'))}
             referrerPolicy="no-referrer"
             onError={() => {
               if (image === cover) setFailedArtwork(image);
@@ -359,7 +366,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
             }}
           />
         ) : (
-          <span aria-label="No cover available">♫</span>
+          <span aria-label={t('No cover available')}>♫</span>
         )}
       </div>
       <button
@@ -373,35 +380,36 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
           setWebsiteOpen((value) => !value);
         }}
       >
-        {websiteOpen ? 'Close YouTube Music' : 'Open YouTube Music'}
+        {websiteOpen ? t('Close YouTube Music') : t('Open YouTube Music')}
       </button>
       {websiteOpen && (
         <p className="field-note">
-          Use this view for sign-in, consent, or playback prompts. Close it to
-          return control to TagSet.
+          {t(
+            'Use this view for sign-in, consent, or playback prompts. Close it to return control to TagSet.',
+          )}
         </p>
       )}
       <div
         hidden={!websiteOpen}
         ref={surface}
         className="wrapper-music-surface"
-        aria-label="YouTube Music website"
+        aria-label={t('YouTube Music website')}
       />
       <div className="now-playing">
         <span className="eyebrow">
           {song
-            ? `TRACK ${queue.index + 1} OF ${queue.songs.length}`
-            : 'YOUR COLLECTION, YOUR CONNECTIONS'}
+            ? t('TRACK {0} OF {1}', queue.index + 1, queue.songs.length)
+            : t('YOUR COLLECTION, YOUR CONNECTIONS')}
         </span>
-        <h2>{song?.title ?? 'Choose a song or tag.'}</h2>
+        <h2>{song?.title ?? t('Choose a song or tag.')}</h2>
         <p>
           {song?.artists.join(' · ') ??
-            'Choose a song or let a tag set the mood.'}
+            t('Choose a song or let a tag set the mood.')}
         </p>
       </div>
       <div className="seek-row">
         <input
-          aria-label="Seek"
+          aria-label={t('Seek')}
           type="range"
           min="0"
           max={duration || 1}
@@ -419,7 +427,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
       <div className="transport">
         <button
           className={`icon-button ${queue.shuffle ? 'active' : ''}`}
-          aria-label="Shuffle"
+          aria-label={t('Shuffle')}
           aria-pressed={queue.shuffle}
           onClick={() => dispatch({ type: 'shuffle' })}
         >
@@ -427,7 +435,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         </button>
         <button
           className="icon-button"
-          aria-label="Previous song"
+          aria-label={t('Previous song')}
           disabled={!song}
           onClick={() => navigate('previous')}
         >
@@ -435,7 +443,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         </button>
         <button
           className="play-toggle"
-          aria-label={playing ? 'Pause' : 'Play'}
+          aria-label={playing ? t('Pause') : t('Play')}
           disabled={!song}
           onClick={togglePlayback}
         >
@@ -443,7 +451,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         </button>
         <button
           className="icon-button"
-          aria-label="Next song"
+          aria-label={t('Next song')}
           disabled={!song}
           onClick={() => navigate('next')}
         >
@@ -451,7 +459,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         </button>
         <button
           className={`icon-button ${queue.repeat !== 'off' ? 'active' : ''}`}
-          aria-label={`Repeat: ${queue.repeat}`}
+          aria-label={t('Repeat: {0}', t(queue.repeat))}
           onClick={() => dispatch({ type: 'repeat' })}
         >
           {queue.repeat === 'one' ? '↻₁' : '↻'}
@@ -459,9 +467,9 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
       </div>
       {window.tagsetHost && (
         <label className="volume-row">
-          Volume
+          {t('Volume')}
           <input
-            aria-label="Volume"
+            aria-label={t('Volume')}
             type="range"
             min="0"
             max="100"
@@ -472,26 +480,30 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
       )}
       {loading && loadingNoticeFor === `${videoId}:${queue.revision}` && (
         <p className="notice" role="status">
-          Opening your song in YouTube Music… Use “Open YouTube Music” if it
-          needs consent or a playback prompt.
+          {t(
+            'Opening your song in YouTube Music… Use “Open YouTube Music” if it needs consent or a playback prompt.',
+          )}
         </p>
       )}
       {playback.advertisement && (
         <p className="notice">
-          Advertisement · playback is handled by YouTube Music.
+          {t('Advertisement · playback is handled by YouTube Music.')}
         </p>
       )}
       {error && (
         <div className="notice error" role="alert">
-          {error}
+          {t(error)}
           <button onClick={() => dispatch({ type: 'retry' })}>
-            Retry song
+            {t('Retry song')}
           </button>
         </div>
       )}
       <div className="queue-heading">
-        <h3>Up next</h3>
-        <span>{Math.max(0, queue.songs.length - queue.index - 1)} tracks</span>
+        <h3>{t('Up next')}</h3>
+        <span>
+          {Math.max(0, queue.songs.length - queue.index - 1)}
+          {t(' tracks')}
+        </span>
       </div>
       <ol className="queue-list">
         {queue.songs.slice(queue.index + 1).map((item, index) => (
@@ -505,7 +517,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         ))}
       </ol>
       <p className="player-footnote">
-        Library saved on this device · Playback by YouTube Music
+        {t('Library saved on this device · Playback by YouTube Music')}
       </p>
     </aside>
   );

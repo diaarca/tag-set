@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreFoundation
+import Security
 import SwiftUI
 import WebKit
 
@@ -18,6 +19,14 @@ private final class ScriptHandler: NSObject, WKScriptMessageHandler {
   func userContentController(
     _ controller: WKUserContentController, didReceive message: WKScriptMessage
   ) { receive?(message) }
+}
+
+private final class GitHubRedirectGuard: NSObject, URLSessionTaskDelegate {
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) { completionHandler(nil) }
 }
 
 private final class WrapperController: UIViewController, WKNavigationDelegate, WKUIDelegate,
@@ -233,6 +242,41 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
   }
   private func request(_ operation: String, payload: Any?) async throws -> Any? {
     switch operation {
+    case "hasGitHubToken": return try githubToken() != nil
+    case "saveGitHubToken":
+      guard let token = payload as? String, token.count <= 1024,
+        token.range(of: "^[A-Za-z0-9_]+$", options: .regularExpression) != nil,
+        let data = token.data(using: .utf8)
+      else { throw failure("Invalid GitHub token.") }
+      let query = tokenQuery()
+      var status = SecItemUpdate(
+        query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+      if status == errSecItemNotFound {
+        var item = query
+        item[kSecValueData as String] = data
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        status = SecItemAdd(item as CFDictionary, nil)
+      }
+      guard status == errSecSuccess else {
+        throw failure("The GitHub token could not be saved in Keychain.")
+      }
+      return nil
+    case "removeGitHubToken":
+      let status = SecItemDelete(tokenQuery() as CFDictionary)
+      guard status == errSecSuccess || status == errSecItemNotFound else {
+        throw failure("The GitHub token could not be removed.")
+      }
+      return nil
+    case "githubPull": return try await githubPull(payload)
+    case "githubPush": return try await githubPush(payload)
+    case "readPreferences": return UserDefaults.standard.string(forKey: "preferences")
+    case "writePreferences":
+      let data = try libraryData(payload)
+      guard data.count <= 65536, let value = String(data: data, encoding: .utf8) else {
+        throw failure("Invalid settings.")
+      }
+      UserDefaults.standard.set(value, forKey: "preferences")
+      return nil
     case "readLibrary": return try readLibrary()
     case "writeLibrary":
       guard let input = payload as? [String: Any],
@@ -267,6 +311,122 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
       return nil
     default: throw failure("Unsupported native operation.")
     }
+  }
+  private func tokenQuery() -> [String: Any] {
+    [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: "dev.dylan.Setwise.Wrapper.github",
+      kSecAttrAccount as String: "token",
+    ]
+  }
+  private func githubToken() throws -> String? {
+    var query = tokenQuery()
+    query[kSecReturnData as String] = true
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    if status == errSecItemNotFound { return nil }
+    guard status == errSecSuccess, let data = result as? Data,
+      let token = String(data: data, encoding: .utf8)
+    else { throw failure("The GitHub token could not be unlocked. Save it again.") }
+    return token
+  }
+  private func githubConfig(_ value: Any?) throws -> (String, String) {
+    guard let input = value as? [String: Any], let repo = input["repository"] as? String,
+      repo.range(of: "^[A-Za-z0-9-]{1,39}/[A-Za-z0-9_.-]{1,100}$", options: .regularExpression)
+        != nil,
+      ![".", ".."].contains(String(repo.split(separator: "/").last ?? "")),
+      let branch = input["branch"] as? String, !branch.isEmpty, branch.count <= 200,
+      branch.rangeOfCharacter(
+        from: .controlCharacters.union(.whitespacesAndNewlines).union(
+          CharacterSet(charactersIn: "?#\\"))) == nil,
+      let encoded = branch.addingPercentEncoding(withAllowedCharacters: .alphanumerics)
+    else { throw failure("Enter a repository as owner/repo and a valid branch.") }
+    return ("/repos/\(repo)", encoded)
+  }
+  private func githubCall(
+    _ path: String, method: String = "GET", body: [String: Any]? = nil,
+    allowMissing: Bool = false
+  ) async throws -> [String: Any]? {
+    guard let token = try githubToken() else { throw failure("Save a GitHub token first.") }
+    guard let url = URL(string: "https://api.github.com\(path)") else {
+      throw failure("Invalid GitHub request.")
+    }
+    var request = URLRequest(url: url)
+    request.httpMethod = method
+    request.timeoutInterval = 30
+    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    request.setValue("application/vnd.github.object+json", forHTTPHeaderField: "Accept")
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+    if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
+    let config = URLSessionConfiguration.ephemeral
+    config.timeoutIntervalForResource = 30
+    let session = URLSession(
+      configuration: config, delegate: GitHubRedirectGuard(), delegateQueue: nil)
+    defer { session.finishTasksAndInvalidate() }
+    let (data, response) = try await session.data(for: request)
+    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    if status == 404 && allowMissing { return nil }
+    if [409, 422].contains(status) {
+      throw failure(
+        "GitHub rejected the update. Pull again before pushing; check branch permissions.")
+    }
+    guard (200...299).contains(status) else {
+      throw failure(
+        "GitHub request failed (\(status)). Check the repository, branch, token, and its Contents permission."
+      )
+    }
+    guard data.count <= 12 * 1024 * 1024,
+      let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    else { throw failure("Invalid GitHub response.") }
+    return json
+  }
+  private func validSHA(_ value: Any?) -> String? {
+    guard let sha = value as? String,
+      sha.range(of: "^[a-f0-9]{40}$", options: .regularExpression) != nil
+    else { return nil }
+    return sha
+  }
+  private func githubPull(_ value: Any?) async throws -> [String: Any] {
+    let (path, branch) = try githubConfig(value)
+    _ = try await githubCall("\(path)/branches/\(branch)")
+    guard
+      let file = try await githubCall(
+        "\(path)/contents/tagset-library.json?ref=\(branch)", allowMissing: true)
+    else { return ["data": NSNull(), "sha": NSNull()] }
+    guard file["type"] as? String == "file", let size = number(file["size"]),
+      size <= Double(Self.maxLibraryBytes),
+      let sha = validSHA(file["sha"])
+    else { throw failure("Invalid shared library file.") }
+    let blob: [String: Any]?
+    if file["encoding"] as? String == "base64" {
+      blob = file
+    } else {
+      blob = try await githubCall("\(path)/git/blobs/\(sha)")
+    }
+    guard blob?["encoding"] as? String == "base64", let encoded = blob?["content"] as? String,
+      let bytes = Data(base64Encoded: encoded, options: .ignoreUnknownCharacters),
+      let text = String(data: bytes, encoding: .utf8)
+    else { throw failure("Invalid GitHub library response.") }
+    _ = try libraryData(text)
+    return ["data": text, "sha": sha]
+  }
+  private func githubPush(_ value: Any?) async throws -> [String: Any] {
+    let (path, _) = try githubConfig(value)
+    guard let input = value as? [String: Any], let branch = input["branch"] as? String,
+      input["sha"] is NSNull || validSHA(input["sha"]) != nil
+    else { throw failure("Pull before pushing.") }
+    let data = try libraryData(input["data"])
+    var body: [String: Any] = [
+      "message": "Update TagSet library", "branch": branch, "content": data.base64EncodedString(),
+    ]
+    if let sha = validSHA(input["sha"]) { body["sha"] = sha }
+    let result = try await githubCall(
+      "\(path)/contents/tagset-library.json", method: "PUT", body: body)
+    guard let content = result?["content"] as? [String: Any], let sha = validSHA(content["sha"])
+    else { throw failure("GitHub did not confirm the library update. Pull before pushing again.") }
+    return ["sha": sha]
   }
   private func catalog(_ value: Any?) async throws -> Any {
     guard let input = value as? [String: Any], let endpoint = input["endpoint"] as? String,

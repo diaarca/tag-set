@@ -1,3 +1,4 @@
+import { useTranslation } from './Preferences';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 export function Modal({
@@ -9,6 +10,7 @@ export function Modal({
   onClose(): void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const element = dialog.current!;
@@ -36,7 +38,7 @@ export function Modal({
         <h2 id="modal-title">{title}</h2>
         <button
           className="icon-button"
-          aria-label="Close dialog"
+          aria-label={t('Close dialog')}
           onClick={onClose}
         >
           ×

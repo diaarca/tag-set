@@ -1,3 +1,4 @@
+import { usePreferences, useTranslation } from './Preferences';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { Library, Song, Tag } from '../../shared/types.js';
 import { api, exportLibrary } from './api';
@@ -5,17 +6,21 @@ import { Player, type PlayerHandle } from './Player';
 import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
 import { ImportSongs } from './ImportSongs';
+import { Settings } from './Settings';
 
 type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
 const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
 
 export function App() {
+  const { t } = useTranslation();
+  const { preferences } = usePreferences();
   const [library, setLibrary] = useState<Library>(emptyLibrary);
   const [songs, setSongs] = useState<Song[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [tagSearch, setTagSearch] = useState('');
   const [songSearch, setSongSearch] = useState('');
   const [editor, setEditor] = useState<Editor>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,8 +84,12 @@ export function App() {
     setSelected(id);
     setSongSearch('');
   };
-  const filteredTags = library.tags.filter((tag) =>
-    tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
+  const filteredTags = library.tags.filter(
+    (tag) =>
+      (tag.pinned ||
+        !tag.artist ||
+        tag.songCount >= preferences.minimumArtistSongs) &&
+      tag.name.toLowerCase().includes(tagSearch.toLowerCase()),
   );
   const tagGroups = [
     { label: 'PINNED TAGS', tags: filteredTags.filter((tag) => tag.pinned) },
@@ -123,7 +132,11 @@ export function App() {
         key={item.id}
         className={`nav-item ${selected === item.id ? 'selected' : ''}`}
         onClick={() => chooseTag(item.id)}
-        title={`${item.name} · ${item.songCount >= 2 ? 'automatic playlist' : 'tag'}`}
+        title={t(
+          '{0} · {1}',
+          item.name,
+          item.songCount >= 2 ? t('automatic playlist') : t('tag'),
+        )}
       >
         <span className="nav-symbol">{item.pinned ? '↗' : '#'}</span>
         <span className="nav-name">{item.name}</span>
@@ -133,11 +146,11 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar" aria-label="Library navigation">
+      <aside className="sidebar" aria-label={t('Library navigation')}>
         <a
           className="brand"
           href="/"
-          aria-label="TagSet home"
+          aria-label={t('TagSet home')}
           onClick={(event) => {
             event.preventDefault();
             chooseTag(null);
@@ -148,13 +161,14 @@ export function App() {
             <i />
             <i />
           </span>
-          TagSet<span className="brand-period">.</span>
+          {t('TagSet')}
+          <span className="brand-period">.</span>
         </a>
         <div className="library-heading">
-          <span className="eyebrow">YOUR LIBRARY</span>
+          <span className="eyebrow">{t('YOUR LIBRARY')}</span>
           <button
             className="icon-button"
-            aria-label="Create tag"
+            aria-label={t('Create tag')}
             onClick={() => setEditor({ kind: 'tag' })}
           >
             +
@@ -165,25 +179,25 @@ export function App() {
           onClick={() => chooseTag(null)}
         >
           <span className="nav-symbol">▤</span>
-          <span className="nav-name">All songs</span>
+          <span className="nav-name">{t('All songs')}</span>
           <span className="nav-count">{library.songs.length}</span>
         </button>
         <label className="tag-search">
           <span aria-hidden="true">⌕</span>
           <input
-            aria-label="Find a tag"
-            placeholder="Find a tag"
+            aria-label={t('Find a tag')}
+            placeholder={t('Find a tag')}
             value={tagSearch}
             onChange={(event) => setTagSearch(event.target.value)}
           />
         </label>
-        <nav className="tag-navigation" aria-label="Tags">
+        <nav className="tag-navigation" aria-label={t('Tags')}>
           {tagGroups
             .filter((group) => group.tags.length)
             .map((group) => (
-              <Fragment key={group.label}>
+              <Fragment key={t(group.label)}>
                 <div className="nav-group-title">
-                  {group.label} <span>{group.tags.length}</span>
+                  {t(group.label)} <span>{group.tags.length}</span>
                 </div>
                 {tagList(group.tags)}
               </Fragment>
@@ -191,35 +205,40 @@ export function App() {
           {!filteredTags.length && (
             <p className="sidebar-hint">
               {tagSearch
-                ? 'No matching tags.'
-                : 'Your artists, genres, and little obsessions will live here.'}
+                ? t('No matching tags.')
+                : library.tags.length
+                  ? t('No tags meet the visibility settings.')
+                  : t(
+                      'Your artists, genres, and little obsessions will live here.',
+                    )}
             </p>
           )}
         </nav>
         <button className="new-tag" onClick={() => setEditor({ kind: 'tag' })}>
-          <span>+</span> New tag
+          <span>+</span>
+          {t(' New tag')}
         </button>
-        <div className="local-label">
-          <span className="live-dot" />
-          <div>
-            Local by design
-            <small>Your library. Your device.</small>
-          </div>
-        </div>
+        <button
+          className="text-button settings-button"
+          onClick={() => setSettingsOpen(true)}
+        >
+          {t('Settings')}
+        </button>
       </aside>
 
       <main className="main-panel">
         {notice && (
           <div className="notice" role="status">
-            {notice}{' '}
+            {t(notice)}{' '}
             <button className="text-button" onClick={() => setNotice('')}>
-              Dismiss
+              {t('Dismiss')}
             </button>
           </div>
         )}
         <header className="topbar">
           <div className="breadcrumb">
-            Library <span>/</span> <strong>{tag?.name ?? 'All songs'}</strong>
+            {t('Library ')}
+            <span>/</span> <strong>{tag?.name ?? t('All songs')}</strong>
           </div>
           <div className="library-transfer">
             <input
@@ -238,7 +257,7 @@ export function App() {
               disabled={transferring}
               onClick={() => importFile.current?.click()}
             >
-              Import library
+              {t('Import library')}
             </button>
             <button
               className="text-button"
@@ -256,14 +275,15 @@ export function App() {
                   .finally(() => setTransferring(false));
               }}
             >
-              Export library
+              {t('Export library')}
             </button>
           </div>
           <button
             className="primary add-song"
             onClick={() => setEditor({ kind: 'song' })}
           >
-            <span>+</span> Add song
+            <span>+</span>
+            {t(' Add song')}
           </button>
         </header>
         <section className="collection-header">
@@ -271,32 +291,36 @@ export function App() {
             <div className="orbit orbit-one" />
             <div className="orbit orbit-two" />
             <div className="orbit orbit-three" />
-            <span>{selected === null ? 's' : '#'}</span>
+            <span>{selected === null ? t('s') : '#'}</span>
             <i />
           </div>
           <div className="collection-intro">
             <span className="eyebrow">
               {selected === null
-                ? 'THE WHOLE COLLECTION'
+                ? t('THE WHOLE COLLECTION')
                 : (tag?.songCount ?? 0) >= 2
-                  ? 'AUTOMATIC PLAYLIST'
-                  : 'TAG COLLECTION'}
+                  ? t('AUTOMATIC PLAYLIST')
+                  : t('TAG COLLECTION')}
             </span>
-            <h1>{tag?.name ?? 'All songs'}</h1>
+            <h1>{tag?.name ?? t('All songs')}</h1>
             <p>
               {selected === null
-                ? 'Every song, a new connection.'
-                : 'A collection that grows with your connections.'}
+                ? t('Every song, a new connection.')
+                : t('A collection that grows with your connections.')}
             </p>
             <div className="collection-meta">
               <span>
-                {songs.length} {songs.length === 1 ? 'song' : 'songs'}
+                {songs.length} {songs.length === 1 ? t('song') : t('songs')}
               </span>
               <span>·</span>
               <span>
                 {selected === null
-                  ? `${library.tags.length} tags to explore`
-                  : `${children.length} child ${children.length === 1 ? 'tag' : 'tags'}`}
+                  ? t('{0} tags to explore', library.tags.length)
+                  : t(
+                      '{0} child {1}',
+                      children.length,
+                      children.length === 1 ? t('tag') : t('tags'),
+                    )}
               </span>
             </div>
           </div>
@@ -307,22 +331,22 @@ export function App() {
             disabled={!songs.length || loading}
             onClick={() => player.current?.start(songs, { shuffle: false })}
           >
-            ▶ <span>Play collection</span>
+            ▶ <span>{t('Play collection')}</span>
           </button>
           <button
             className="play-collection"
             disabled={!songs.length || loading}
             onClick={() => player.current?.start(songs, { shuffle: true })}
           >
-            ⤨ <span>Shuffle play</span>
+            ⤨ <span>{t('Shuffle play')}</span>
           </button>
           {tag && (
             <>
               <button onClick={() => void pin()} aria-pressed={tag.pinned}>
-                {tag.pinned ? '↗ Pinned' : '↗ Pin tag'}
+                {tag.pinned ? t('↗ Pinned') : t('↗ Pin tag')}
               </button>
               <button onClick={() => setEditor({ kind: 'tag', id: tag.id })}>
-                Edit tag
+                {t('Edit tag')}
               </button>
             </>
           )}
@@ -331,7 +355,7 @@ export function App() {
           <div className="collection-connections">
             {parents.length > 0 && (
               <div>
-                <span>ALSO PART OF</span>
+                <span>{t('ALSO PART OF')}</span>
                 {parents.map((item) => (
                   <button
                     className="chip"
@@ -345,7 +369,7 @@ export function App() {
             )}
             {children.length > 0 && (
               <div>
-                <span>INCLUDES</span>
+                <span>{t('INCLUDES')}</span>
                 {children.map((item) => (
                   <button
                     className="chip"
@@ -360,33 +384,35 @@ export function App() {
           </div>
         )}
         <div className="songs-toolbar">
-          <h2>{selected === null ? 'Your songs' : 'Songs in this tag'}</h2>
+          <h2>
+            {selected === null ? t('Your songs') : t('Songs in this tag')}
+          </h2>
           <input
             className="song-search"
-            aria-label="Search songs"
-            placeholder="Search this collection…"
+            aria-label={t('Search songs')}
+            placeholder={t('Search this collection…')}
             value={songSearch}
             onChange={(event) => setSongSearch(event.target.value)}
           />
         </div>
         {error && (
           <div className="notice error" role="alert">
-            {error} <button onClick={refresh}>Try again</button>
+            {t(error)} <button onClick={refresh}>{t('Try again')}</button>
           </div>
         )}
         {loading ? (
           <div role="status" className="empty-state">
             <span className="empty-symbol">◎</span>
-            <h2>Opening your collection…</h2>
+            <h2>{t('Opening your collection…')}</h2>
           </div>
         ) : visibleSongs.length > 0 ? (
-          <div className="song-table" role="table" aria-label="Songs">
+          <div className="song-table" role="table" aria-label={t('Songs')}>
             <div className="song-table-head" role="row">
               <span role="columnheader">#</span>
-              <span role="columnheader">TITLE / ARTIST</span>
-              <span role="columnheader">SOURCE</span>
+              <span role="columnheader">{t('TITLE / ARTIST')}</span>
+              <span role="columnheader">{t('SOURCE')}</span>
               <span role="columnheader" className="sr-only">
-                Actions
+                {t('Actions')}
               </span>
             </div>
             {visibleSongs.map((song, index) => (
@@ -394,7 +420,7 @@ export function App() {
                 <div role="cell">
                   <button
                     className="row-play"
-                    aria-label={`Play ${song.title}`}
+                    aria-label={t('Play {0}', song.title)}
                     onClick={() => player.current?.start([song])}
                   >
                     <span className="row-index">
@@ -415,12 +441,13 @@ export function App() {
                   </span>
                 </div>
                 <span role="cell" className="source-label">
-                  <i /> YouTube
+                  <i />
+                  {t(' YouTube')}
                 </span>
                 <div role="cell">
                   <button
                     className="icon-button"
-                    aria-label={`Edit ${song.title}`}
+                    aria-label={t('Edit {0}', song.title)}
                     onClick={() => setEditor({ kind: 'song', id: song.id })}
                   >
                     ···
@@ -434,17 +461,21 @@ export function App() {
             <span className="empty-symbol">{songSearch ? '⌕' : '♫'}</span>
             <h2>
               {songSearch
-                ? 'Nothing here by that name.'
+                ? t('Nothing here by that name.')
                 : selected === null
-                  ? 'Good music finds a home here.'
-                  : 'Make the first connection.'}
+                  ? t('Good music finds a home here.')
+                  : t('Make the first connection.')}
             </h2>
             <p>
               {songSearch
-                ? 'Try another song title or artist.'
+                ? t('Try another song title or artist.')
                 : selected === null
-                  ? 'Add a song, give it a tag, and start connecting your music.'
-                  : 'Add this tag to a song, or connect a child tag to include its music.'}
+                  ? t(
+                      'Add a song, give it a tag, and start connecting your music.',
+                    )
+                  : t(
+                      'Add this tag to a song, or connect a child tag to include its music.',
+                    )}
             </p>
             {!songSearch && (
               <button
@@ -456,28 +487,34 @@ export function App() {
                 }
               >
                 {selected === null
-                  ? '+ Add your first song'
-                  : 'Connect this tag →'}
+                  ? t('+ Add your first song')
+                  : t('Connect this tag →')}
               </button>
             )}
           </div>
         )}
         <footer className="library-footer">
-          <span className="mini-mark">◎</span> Less sorting. More listening.
+          <span className="mini-mark">◎</span>
+          {t(' Less sorting. More listening.')}
         </footer>
       </main>
 
       <Player ref={player} />
+      {settingsOpen && (
+        <Modal title={t('Settings')} onClose={() => setSettingsOpen(false)}>
+          <Settings onImported={refresh} />
+        </Modal>
+      )}
       {editor && (
         <Modal
           title={
             editor.kind === 'song' || editor.kind === 'manual'
               ? editor.id === undefined
-                ? 'Add a song'
-                : 'Song details'
+                ? t('Add a song')
+                : t('Song details')
               : editor.id === undefined
-                ? 'Create a tag'
-                : 'Tag connections'
+                ? t('Create a tag')
+                : t('Tag connections')
           }
           onClose={() => setEditor(undefined)}
         >
@@ -514,7 +551,7 @@ export function App() {
             />
           ) : editor.id !== undefined &&
             !library.tags.some((tag) => tag.id === editor.id) ? (
-            <p className="muted">Loading tag…</p>
+            <p className="muted">{t('Loading tag…')}</p>
           ) : (
             <TagEditor
               key={`tag-${editor.id ?? 'new'}`}

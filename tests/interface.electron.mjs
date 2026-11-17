@@ -26,7 +26,12 @@ app.whenReady().then(async () => {
         origin: 'artist',
       })),
     });
-    let exported, playback;
+    let exported,
+      playback,
+      preferences = null;
+    let githubHasToken = false;
+    let githubSha = 'a'.repeat(40);
+    let pushedLibrary;
     const commands = [];
     const window = new BrowserWindow({
       show: false,
@@ -43,6 +48,28 @@ app.whenReady().then(async () => {
       (_details, done) => done({ cancel: true }),
     );
     ipcMain.handle('wrapper-request', (_event, operation, payload) => {
+      if (operation === 'hasGitHubToken') return githubHasToken;
+      if (operation === 'saveGitHubToken') {
+        githubHasToken = true;
+        return null;
+      }
+      if (operation === 'removeGitHubToken') {
+        githubHasToken = false;
+        return null;
+      }
+      if (operation === 'githubPull') return { data: saved, sha: githubSha };
+      if (operation === 'githubPush') {
+        if (payload.sha !== githubSha)
+          throw new Error('Remote changed. Pull again before pushing.');
+        pushedLibrary = JSON.parse(payload.data);
+        githubSha = 'c'.repeat(40);
+        return { sha: githubSha };
+      }
+      if (operation === 'readPreferences') return preferences;
+      if (operation === 'writePreferences') {
+        preferences = payload;
+        return null;
+      }
       if (operation === 'readLibrary') return saved;
       if (operation === 'writeLibrary') {
         assert.equal(payload.previous, saved);
@@ -98,6 +125,28 @@ app.whenReady().then(async () => {
     }))`);
     await window.loadFile(resolve('wrapper/bundle/index.html'));
     await waitFor("document.querySelectorAll('.song-row').length === 3");
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      "!!document.querySelector('dialog input[type=checkbox]:not(:disabled)')",
+    );
+    await evaluate(
+      "document.querySelector('dialog input[type=checkbox]').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog input[type=checkbox]')?.checked === true",
+    );
+    assert.equal(JSON.parse(preferences).normalizeVolume, true);
+    await waitFor(
+      "!document.querySelector('dialog input[type=checkbox]').disabled",
+    );
+    assert.ok(
+      commands.some(
+        (command) => command.type === 'normalization' && command.enabled,
+      ),
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     await evaluate("document.querySelector('.new-tag').click()");
     await waitFor("!!document.querySelector('dialog[open] input')");
     await evaluate(`const input = document.querySelector('dialog input');
@@ -316,6 +365,144 @@ app.whenReady().then(async () => {
     );
     assert.equal(exported.songs.length, 3);
     assert.ok(exported.tags.find((tag) => tag.name === 'Mood').pinned);
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="GitHub repository"]:not(:disabled)\')',
+    );
+    await typeInto('GitHub repository', 'example/library');
+    await typeInto('GitHub token', 'unit_test');
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Save connection').click()",
+    );
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub' && !button.disabled)",
+    );
+    assert.ok(
+      await evaluate(
+        "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').disabled",
+      ),
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub').click()",
+    );
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub' && !button.disabled)",
+    );
+    githubSha = 'b'.repeat(40);
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog [role=alert]')?.textContent.includes('Pull again')",
+    );
+    assert.equal(pushedLibrary, undefined);
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub').click()",
+    );
+    await waitFor(
+      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub' && !button.disabled)",
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog [role=status]')?.textContent.includes('pushed')",
+    );
+    assert.equal(pushedLibrary.songs.length, 3);
+    assert.equal(JSON.parse(preferences).githubRepository, 'example/library');
+    assert.ok(!preferences.includes('unit_test'));
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Language"]:not(:disabled)\')',
+    );
+    await evaluate(`const language = document.querySelector('[aria-label="Language"]');
+      language.value = 'fr'; language.dispatchEvent(new Event('change', { bubbles: true }));`);
+    await waitFor(
+      "document.documentElement.lang === 'fr' && document.querySelector('#modal-title')?.textContent === 'Paramètres'",
+    );
+    assert.equal(JSON.parse(preferences).language, 'fr');
+    assert.ok(
+      await evaluate(
+        "Array.from(document.querySelectorAll('.song-name')).some(item => item.textContent === 'Song 1')",
+      ),
+    );
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor(
+      "document.documentElement.lang === 'fr' && document.querySelectorAll('.song-row').length === 3",
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.all-songs .nav-name').textContent",
+      ),
+      'Tous les morceaux',
+    );
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Langue"]:not(:disabled)\')',
+    );
+    await evaluate(`const languageAgain = document.querySelector('[aria-label="Langue"]');
+      languageAgain.value = 'en'; languageAgain.dispatchEvent(new Event('change', { bubbles: true }));`);
+    await waitFor("document.documentElement.lang === 'en'");
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('.tag-navigation .nav-name')).find(item => item.textContent === 'Artist').closest('button').click()",
+    );
+    await waitFor(
+      "document.querySelector('.breadcrumb strong')?.textContent === 'Artist'",
+    );
+    await evaluate(
+      "document.querySelector('.collection-actions button[aria-pressed]').click()",
+    );
+    await waitFor(
+      "document.querySelector('.collection-actions button[aria-pressed]')?.getAttribute('aria-pressed') === 'true'",
+    );
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Minimum songs for unpinned artist tags"]:not(:disabled)\')',
+    );
+    await typeInto('Minimum songs for unpinned artist tags', '4');
+    await evaluate(
+      "document.querySelector('[name=minimumArtistSongs]').form.requestSubmit()",
+    );
+    await waitFor(
+      "!document.querySelector('[name=minimumArtistSongs]').disabled",
+    );
+    assert.equal(JSON.parse(preferences).minimumArtistSongs, 4);
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
+    assert.ok((await evaluate(tagNames)).includes('Artist'));
+    await evaluate(
+      "document.querySelector('.collection-actions button[aria-pressed]').click()",
+    );
+    await waitFor(
+      "document.querySelectorAll('.tag-navigation .nav-name').length === 3",
+    );
+    assert.deepEqual(await evaluate(tagNames), ['Mood', 'Atmosphere', 'Focus']);
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor(
+      "document.querySelectorAll('.song-row').length === 3 && document.querySelectorAll('.tag-navigation .nav-name').length === 3",
+    );
+    assert.deepEqual(await evaluate(tagNames), ['Mood', 'Atmosphere', 'Focus']);
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      '!!document.querySelector(\'[aria-label="Minimum songs for unpinned artist tags"]:not(:disabled)\')',
+    );
+    await typeInto('Minimum songs for unpinned artist tags', '0');
+    await evaluate(
+      "document.querySelector('[name=minimumArtistSongs]').form.requestSubmit()",
+    );
+    await waitFor(
+      "document.querySelectorAll('.tag-navigation .nav-name').length === 4",
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+    );
     for (const width of [1420, 1000, 390]) {
       window.setSize(width, 900);
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -337,7 +524,7 @@ app.whenReady().then(async () => {
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, and responsive layout.',
     );
     app.quit();
   } catch (error) {

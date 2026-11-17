@@ -274,21 +274,6 @@ a {
   font-size: 17px;
   margin-right: 8px;
 }
-.local-label {
-  border-top: 1px solid var(--line);
-  padding: 22px 10px 0;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-size: 11px;
-  color: #b2beac;
-}
-.local-label small {
-  display: block;
-  font-size: 10px;
-  color: #7e8b7a;
-  margin-top: 5px;
-}
 .live-dot {
   background: var(--green);
   border-radius: 100%;
@@ -953,6 +938,20 @@ textarea {
   margin-top: 25px;
   font-size: 12px;
 }
+.settings-button {
+  margin-top: 12px;
+}
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.setting-toggle input {
+  width: auto;
+}
+.settings-section {
+  margin-top: 0;
+}
 .delete-area p {
   color: #d7b8a5;
   line-height: 1.8;
@@ -1106,7 +1105,6 @@ textarea {
     font-size: 26px;
   }
   .library-heading,
-  .local-label,
   .nav-group-title {
     display: none;
   }

@@ -1,9 +1,71 @@
 (() => {
+  function validatePreferences(value) {
+    if (value === null)
+      return {
+        version: 1,
+        normalizeVolume: false,
+        githubRepository: '',
+        githubBranch: 'main',
+        language: 'en',
+        minimumArtistSongs: 0,
+      };
+    if (
+      !value ||
+      value.version !== 1 ||
+      typeof value.normalizeVolume !== 'boolean'
+    )
+      throw new Error(
+        'Invalid settings. The saved settings have not been changed.',
+      );
+    const config = value.githubRepository
+      ? validateGitHubConfig({
+          repository: value.githubRepository,
+          branch: value.githubBranch ?? 'main',
+        })
+      : { repository: '', branch: 'main' };
+    const language = value.language ?? 'en';
+    if (!['en', 'fr'].includes(language))
+      throw new Error('Unsupported language.');
+    const minimumArtistSongs = value.minimumArtistSongs ?? 0;
+    if (
+      !Number.isSafeInteger(minimumArtistSongs) ||
+      minimumArtistSongs < 0 ||
+      minimumArtistSongs > 50_000
+    )
+      throw new Error(
+        'The artist song minimum must be a whole number from 0 to 50000.',
+      );
+    return {
+      version: 1,
+      normalizeVolume: value.normalizeVolume,
+      githubRepository: config.repository,
+      githubBranch: config.branch,
+      language,
+      minimumArtistSongs,
+    };
+  }
+  function validateGitHubConfig(value) {
+    if (
+      !value ||
+      typeof value.repository !== 'string' ||
+      !/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9_.-]{1,100}$/.test(value.repository) ||
+      ['.', '..'].includes(value.repository.split('/')[1]) ||
+      typeof value.branch !== 'string' ||
+      !value.branch.trim() ||
+      value.branch.length > 200 ||
+      /[\s?\\#]/.test(value.branch) ||
+      [...value.branch].some((character) => character.charCodeAt(0) < 32)
+    )
+      throw new Error('Enter a repository as owner/repo and a valid branch.');
+    return { repository: value.repository, branch: value.branch };
+  }
   function validateCommand(value) {
     if (!value || typeof value !== 'object')
       throw new Error('Invalid command.');
     if (value.type === 'play' || value.type === 'pause')
       return { type: value.type };
+    if (value.type === 'normalization' && typeof value.enabled === 'boolean')
+      return { type: value.type, enabled: value.enabled };
     if (
       (value.type === 'seek' || value.type === 'volume') &&
       typeof value.value === 'number' &&
@@ -100,5 +162,7 @@
     validateCommand,
     allowedNavigation,
     artworkURL,
+    validatePreferences,
+    validateGitHubConfig,
   });
 })();

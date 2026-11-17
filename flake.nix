@@ -31,6 +31,7 @@
         } // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
           dmg = command "dmg" [] "wrapper/package-macos.mjs" [ "${pkgs.electron.src}" ];
           ios = command "ios" [ pkgs.xcodegen ] "wrapper/package-ios.mjs" [];
+          xcode = command "xcode" [ pkgs.xcodegen ] "wrapper/package-ios.mjs" [ "--open" ];
         });
       devShells = forEachSystem (system:
         let pkgs = import nixpkgs { inherit system; };

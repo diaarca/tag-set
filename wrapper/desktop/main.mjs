@@ -5,12 +5,20 @@ import {
   ipcMain,
   dialog,
   Menu,
+  safeStorage,
 } from 'electron';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readFile, rm } from 'node:fs/promises';
+import { createGitHubClient } from './github.mjs';
 import '../protocol.js';
-import { atomicWrite, createLibraryStorage, libraryText } from './storage.mjs';
+import {
+  atomicWrite,
+  createLibraryStorage,
+  createPreferencesStorage,
+  libraryText,
+} from './storage.mjs';
 import { catalogRequest } from './catalog.mjs';
 import { createTrackNavigation } from './navigation.mjs';
 const { allowedNavigation, validateCommand, artworkURL } =
@@ -31,6 +39,35 @@ let storage;
 let loadToken = null;
 let musicFrame;
 let volume = 70;
+let normalizeVolume = false;
+const preferencesStorage = createPreferencesStorage(
+  join(userData, 'preferences.json'),
+);
+const githubTokenFile = join(userData, 'github-token.bin');
+const secureStorage = () => {
+  if (
+    !safeStorage.isEncryptionAvailable() ||
+    (process.platform === 'linux' &&
+      safeStorage.getSelectedStorageBackend() === 'basic_text')
+  )
+    throw new Error('A system keychain is required to store the GitHub token.');
+};
+const readGitHubToken = async () => {
+  let encrypted;
+  try {
+    encrypted = await readFile(githubTokenFile);
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+  secureStorage();
+  try {
+    return safeStorage.decryptString(encrypted);
+  } catch {
+    throw new Error('The GitHub token could not be unlocked. Save it again.');
+  }
+};
+const github = createGitHubClient(readGitHubToken);
 let loadTrack;
 
 function applyFrame() {
@@ -153,7 +190,7 @@ function createWindow() {
     if (new URL(music.webContents.getURL()).hostname === 'music.youtube.com')
       void music.webContents
         .executeJavaScript(
-          `window.__tagsetLoadToken = ${JSON.stringify(loadToken)}; window.__tagsetPreferredVolume = ${volume / 100}; ${bridge}`,
+          `window.__tagsetLoadToken = ${JSON.stringify(loadToken)}; window.__tagsetPreferredVolume = ${volume / 100}; window.__tagsetNormalizeVolume = ${normalizeVolume}; ${bridge}`,
         )
         .catch((error) => report({ error: error.message }));
   });
@@ -225,6 +262,33 @@ ipcMain.handle('wrapper-request', async (event, operation, payload) => {
   if (!trusted(event))
     throw new Error('Only the local TagSet interface can access its library.');
   switch (operation) {
+    case 'hasGitHubToken':
+      return (await readGitHubToken()) !== null;
+    case 'saveGitHubToken': {
+      if (
+        typeof payload !== 'string' ||
+        payload.length > 1024 ||
+        !/^[A-Za-z0-9_]+$/.test(payload)
+      )
+        throw new Error('Invalid GitHub token.');
+      secureStorage();
+      await atomicWrite(githubTokenFile, safeStorage.encryptString(payload));
+      return null;
+    }
+    case 'removeGitHubToken':
+      await rm(githubTokenFile, { force: true });
+      return null;
+    case 'githubPull':
+      return github.pull(payload);
+    case 'githubPush':
+      if (!payload || typeof payload !== 'object')
+        throw new Error('Invalid GitHub request.');
+      return github.push(payload, payload.data, payload.sha);
+    case 'readPreferences':
+      return preferencesStorage.read();
+    case 'writePreferences':
+      await preferencesStorage.write(payload);
+      return null;
     case 'readLibrary':
       return storage.read();
     case 'writeLibrary':
@@ -263,11 +327,12 @@ ipcMain.on('wrapper-command', async (event, value) => {
       await loadTrack(command.videoId);
       return;
     }
-    if (command.type === 'volume') {
-      volume = command.value;
+    if (command.type === 'volume' || command.type === 'normalization') {
+      if (command.type === 'volume') volume = command.value;
+      else normalizeVolume = command.enabled;
       if (music.webContents.getURL().startsWith('https://music.youtube.com/'))
         await music.webContents.executeJavaScript(
-          `(() => { window.__tagsetPreferredVolume = ${volume / 100}; return window.__tagsetControl?.('volume', ${volume}); })()`,
+          `(() => { window.__tagsetPreferredVolume = ${volume / 100}; window.__tagsetNormalizeVolume = ${normalizeVolume}; return window.__tagsetControl?.(${JSON.stringify(command.type)}, ${command.type === 'volume' ? volume : normalizeVolume}); })()`,
         );
       return;
     }

@@ -54,6 +54,7 @@ export async function copyApplication(destination, version) {
       [
         'main.mjs',
         'catalog.mjs',
+        'github.mjs',
         'storage.mjs',
         'navigation.mjs',
         'preload.cjs',
