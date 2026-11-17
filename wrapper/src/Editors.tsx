@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { Library, SongDetails, Tag } from '../../shared/types.js';
 import { api } from './api';
 import { AppError } from '../../shared/errors.js';
@@ -20,6 +20,153 @@ function useAction() {
     }
   };
   return { busy, error, run };
+}
+
+function TagPicker({
+  label,
+  tags,
+  available,
+  busy,
+  run,
+  onAssign,
+}: {
+  label: string;
+  tags: Tag[];
+  available: Tag[];
+  busy: boolean;
+  run: ReturnType<typeof useAction>['run'];
+  onAssign(id: number): Promise<void>;
+}) {
+  const listId = useId();
+  const list = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const name = query.trim();
+  const normalized = name.toLowerCase();
+  const existing = tags.find((tag) => tag.name.toLowerCase() === normalized);
+  const matches = available
+    .filter((tag) => tag.name.toLowerCase().includes(normalized))
+    .sort(
+      (a, b) =>
+        Number(b.id === existing?.id) - Number(a.id === existing?.id) ||
+        a.name.localeCompare(b.name),
+    );
+  const choices = matches.map((tag) => ({ id: tag.id, name: tag.name }));
+  if (name && !existing) choices.push({ id: 0, name });
+  const selected = Math.min(active, choices.length - 1);
+
+  useEffect(() => {
+    if (open)
+      list.current
+        ?.querySelector('[aria-selected="true"]')
+        ?.scrollIntoView({ block: 'nearest' });
+  }, [open, selected]);
+
+  const assign = (index: number) => {
+    const choice = choices[index];
+    if (busy || !choice) return;
+    void run(async () => {
+      const id =
+        choice.id ||
+        (await api<{ id: number }>('/tags', 'POST', { name: choice.name })).id;
+      await onAssign(id);
+      setQuery('');
+      setActive(-1);
+      setOpen(false);
+    });
+  };
+  return (
+    <div
+      className="tag-picker"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <form
+        className="inline-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          assign(selected);
+        }}
+      >
+        <input
+          aria-label={label}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-activedescendant={
+            open && selected >= 0 ? `${listId}-${selected}` : undefined
+          }
+          autoComplete="off"
+          placeholder="Search or create a tag…"
+          maxLength={200}
+          value={query}
+          disabled={busy}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActive(event.target.value.trim() ? 0 : -1);
+            setOpen(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && open) {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              setOpen(true);
+              setActive(
+                Math.max(
+                  0,
+                  Math.min(
+                    choices.length - 1,
+                    selected + (event.key === 'ArrowDown' ? 1 : -1),
+                  ),
+                ),
+              );
+            } else if (event.key === 'Enter') {
+              event.preventDefault();
+              if (!event.nativeEvent.isComposing) assign(selected);
+            }
+          }}
+        />
+        <button disabled={busy || selected < 0}>
+          {choices[selected]?.id === 0 ? 'Create & add' : 'Add tag'}
+        </button>
+      </form>
+      {open && (
+        <div
+          id={listId}
+          ref={list}
+          role="listbox"
+          aria-label={label}
+          className="tag-picker-results"
+        >
+          {choices.map((choice, index) => (
+            <button
+              type="button"
+              role="option"
+              id={`${listId}-${index}`}
+              key={choice.id}
+              aria-selected={index === selected}
+              tabIndex={-1}
+              disabled={busy}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => assign(index)}
+            >
+              {choice.id ? choice.name : `Create “${choice.name}”`}
+            </button>
+          ))}
+          {!choices.length && (
+            <p className="field-note">No available tags match.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DeleteButton({
@@ -85,8 +232,6 @@ export function SongEditor({
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [artists, setArtists] = useState('');
-  const [tagId, setTagId] = useState('');
-  const [newTag, setNewTag] = useState('');
   const [loadError, setLoadError] = useState('');
   const [saved, setSaved] = useState(false);
   const { busy, error, run } = useAction();
@@ -287,58 +432,17 @@ export function SongEditor({
               </li>
             ))}
           </ul>
-          <form
-            className="inline-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (tagId)
-                void run(async () => {
-                  await api(`/songs/${id}/tags/${tagId}`, 'PUT');
-                  setTagId('');
-                  await refreshTags();
-                });
+          <TagPicker
+            label="Tag to assign"
+            tags={library.tags}
+            available={available}
+            busy={busy}
+            run={run}
+            onAssign={async (tagId) => {
+              await api(`/songs/${id}/tags/${tagId}`, 'PUT');
+              await refreshTags();
             }}
-          >
-            <select
-              aria-label="Tag to assign"
-              value={tagId}
-              onChange={(event) => setTagId(event.target.value)}
-              disabled={busy}
-            >
-              <option value="">Choose a tag…</option>
-              {available.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
-            </select>
-            <button disabled={busy || !tagId}>Add tag</button>
-          </form>
-          <form
-            className="inline-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void run(async () => {
-                const tag = await api<{ id: number }>('/tags', 'POST', {
-                  name: newTag,
-                });
-                await api(`/songs/${id}/tags/${tag.id}`, 'PUT');
-                setNewTag('');
-                await refreshTags();
-              });
-            }}
-          >
-            <input
-              aria-label="New tag name"
-              maxLength={200}
-              required
-              value={newTag}
-              onChange={(event) => setNewTag(event.target.value)}
-              placeholder="Or create a new tag…"
-              disabled={busy}
-            />
-            <button disabled={busy || !newTag.trim()}>Create & add</button>
-          </form>
+          />
           <DeleteButton
             label="Delete song"
             explanation="Remove this song and its assignments from your library? Tags and the original YouTube video will remain."
@@ -372,8 +476,6 @@ export function TagEditor({
   onOpenTag(id: number): void;
 }) {
   const [name, setName] = useState(tag?.name ?? '');
-  const [parentId, setParentId] = useState('');
-  const [childId, setChildId] = useState('');
   const [saved, setSaved] = useState(false);
   const { busy, error, run } = useAction();
   const parents = library.tags.filter((item) =>
@@ -415,7 +517,6 @@ export function TagEditor({
     </ul>
   );
   const relationshipForm = (parent: boolean) => {
-    const value = parent ? parentId : childId;
     const options = library.tags.filter(
       (item) =>
         item.id !== tag?.id &&
@@ -424,42 +525,20 @@ export function TagEditor({
         ),
     );
     return (
-      <form
-        className="inline-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void run(async () => {
-            await api(
-              `/tags/${parent ? value : tag!.id}/children/${parent ? tag!.id : value}`,
-              'PUT',
-            );
-            if (parent) setParentId('');
-            else setChildId('');
-            onChange();
-          });
+      <TagPicker
+        label={parent ? 'Parent tag' : 'Child tag'}
+        tags={library.tags}
+        available={options}
+        busy={busy}
+        run={run}
+        onAssign={async (id) => {
+          await api(
+            `/tags/${parent ? id : tag!.id}/children/${parent ? tag!.id : id}`,
+            'PUT',
+          );
+          onChange();
         }}
-      >
-        <select
-          aria-label={parent ? 'Parent tag' : 'Child tag'}
-          value={value}
-          onChange={(event) =>
-            parent
-              ? setParentId(event.target.value)
-              : setChildId(event.target.value)
-          }
-          disabled={busy}
-        >
-          <option value="">
-            {parent ? 'Choose a parent…' : 'Choose a child…'}
-          </option>
-          {options.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-        <button disabled={busy || !value}>Connect</button>
-      </form>
+      />
     );
   };
   return (

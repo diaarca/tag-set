@@ -1,0 +1,15 @@
+- [x] : Make easier to add tags to tags and musics. Ideas:
+      -> Add a searching tool when we want to add tags
+      -> Modify the "Or create a new tag" box allowing to type an existing tag (working as a searching bar in this case)
+- [ ] : Hide scroll bar in left tag list, middle song list in the current playlist and right song queue list
+- [ ] : Categorize the tag on the left list in this order (from top to bot):
+  - Pinned tags
+  - Created tags
+  - Artist (auto generated tags)
+- [ ] : Add a setting tap with:
+  - [ ] : Volume equalizer between musics setting
+  - [ ] : Implement a way to share the library. Ideas:
+        -> Choose a place where to store the library database (in a cloud for example) so that it can be shared easily
+        -> Integrate a github pull and push for the library sharing, the user must create on its own a github repo and the app can perform simple commands (pull and push) the user may have to manage merge conflict on its own (idea comes from the git plugin of obsidian https://github.com/vinzent03/obsidian-git)
+  - [ ] : Add the option to change language, english by default and french (simply create a french version of displayed text)
+  - [ ] : Add the option to choose at how much songs in a auto-generated tags we start to display them in the left tag list (if they are not pinned of course)

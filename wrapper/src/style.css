@@ -913,6 +913,28 @@ textarea {
   font-size: 11px;
   flex-shrink: 0;
 }
+.tag-picker-results {
+  max-height: 190px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: -4px 0 12px;
+  padding: 4px;
+}
+.tag-picker-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+  border: 0;
+  background: transparent;
+}
+.tag-picker-results button[aria-selected='true'] {
+  background: #2b3a2e;
+}
+.tag-picker-results p {
+  margin: 8px;
+}
 .delete-area {
   border-top: 1px solid var(--line);
   padding-top: 20px;
