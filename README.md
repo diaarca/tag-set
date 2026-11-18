@@ -56,7 +56,7 @@ nix run .#ios -- --device DEVICE_ID --allow-provisioning-updates
 
 ## Settings
 
-Open **Settings** in the sidebar. Choose English (default) or French for the interface. Desktop loudness normalization reduces loud tracks using available YouTube metadata; it is unavailable on iOS.
+Open **Settings** in the sidebar. Choose English (default) or French for the interface. Automatic loudness normalization on desktop and iOS reduces loud tracks using available YouTube metadata. Quiet tracks are not amplified; tracks without metadata keep their usual volume. On iOS, metadata loads independently of playback, so the reduction may apply shortly after a song starts. Normalization does not change the device volume.
 
 Set a minimum song count to hide small artist tags from the sidebar. The default `0` shows all tags; pinned and created tags are always shown. Hidden tags remain available in editors.
 

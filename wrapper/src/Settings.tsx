@@ -1,6 +1,7 @@
 import { usePreferences, useTranslation } from './Preferences';
 import { GitHubSharing } from './GitHubSharing';
 import { LibraryLocation } from './LibraryLocation';
+import { nativeAudio } from './host';
 
 export function Settings({
   onImported,
@@ -40,7 +41,7 @@ export function Settings({
           <input
             type="checkbox"
             checked={preferences.normalizeVolume}
-            disabled={busy || !window.tagsetHost}
+            disabled={busy || (!window.tagsetHost && !nativeAudio)}
             onChange={(event) =>
               void save({
                 ...preferences,
@@ -55,13 +56,6 @@ export function Settings({
             'Reduce loud tracks using YouTube loudness metadata. Quiet tracks are not amplified; tracks without metadata keep their usual volume.',
           )}
         </p>
-        {!window.tagsetHost && (
-          <p className="field-note">
-            {t(
-              'Unavailable on iOS with the current player. Use the device volume controls.',
-            )}
-          </p>
-        )}
       </section>
       <section className="editor-section">
         <h3>{t('Library visibility')}</h3>
