@@ -37,6 +37,76 @@ export type QueueAction =
   | { type: 'fail'; message: string }
   | { type: 'playing'; value: boolean };
 
+export function validateQueueAction(value: unknown): QueueAction {
+  if (!value || typeof value !== 'object')
+    throw new Error('Invalid queue command.');
+  const action = value as Record<string, unknown>;
+  switch (action.type) {
+    case 'next':
+    case 'previous':
+    case 'ended':
+    case 'retry':
+    case 'toggle':
+    case 'shuffle':
+    case 'repeat':
+      return { type: action.type };
+  }
+  if (action.type === 'playing' && typeof action.value === 'boolean')
+    return { type: 'playing', value: action.value };
+  if (
+    action.type === 'fail' &&
+    typeof action.message === 'string' &&
+    action.message.length <= 1000
+  )
+    return { type: 'fail', message: action.message };
+  if (
+    action.type === 'remove' &&
+    Number.isSafeInteger(action.id) &&
+    Number(action.id) > 0
+  )
+    return { type: 'remove', id: Number(action.id) };
+  if (
+    action.type === 'start' &&
+    Array.isArray(action.songs) &&
+    action.songs.length <= 50_000 &&
+    (action.shuffle === undefined || typeof action.shuffle === 'boolean')
+  ) {
+    const ids = new Set<number>();
+    const songs = action.songs.map((song: Song) => {
+      if (
+        !song ||
+        !Number.isSafeInteger(song.id) ||
+        song.id <= 0 ||
+        ids.has(song.id) ||
+        typeof song.videoId !== 'string' ||
+        !/^[\w-]{11}$/.test(song.videoId) ||
+        typeof song.title !== 'string' ||
+        !song.title.trim() ||
+        song.title.length > 500 ||
+        !Array.isArray(song.artists) ||
+        song.artists.length > 30 ||
+        !song.artists.every(
+          (name) => typeof name === 'string' && name.length <= 200,
+        )
+      )
+        throw new Error('Invalid queue song.');
+      ids.add(song.id);
+      return {
+        id: song.id,
+        videoId: song.videoId,
+        title: song.title,
+        artists: [...song.artists],
+      };
+    });
+    return {
+      type: 'start',
+      songs,
+      shuffle: action.shuffle as boolean | undefined,
+    };
+  }
+  throw new Error('Invalid queue command.');
+}
+
 function shuffled(songs: Song[]): Song[] {
   const result = [...songs];
   for (let i = result.length - 1; i > 0; i--) {

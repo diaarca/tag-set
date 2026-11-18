@@ -1,6 +1,6 @@
 # TagSet
 
-A local music library with tags, inherited playlists, and YouTube Music playback. Electron runs the desktop app; WKWebView runs the same interface on iPhone/iPad. No local server is required. [Source code](https://github.com/diaarca/tag-set).
+A local music library with tags, inherited playlists, and YouTube Music playback. Electron runs the desktop app. iPhone/iPad use the same web interface with native AVPlayer audio and queue handling. No local server is required. [Source code](https://github.com/diaarca/tag-set).
 
 Songs inherit artist tags. Parent tags include their descendants' songs, without duplicates or cycles. Tags support pins, renaming, and deletion. Search/import songs and playlists, play collections in order or shuffled, and transfer libraries through JSON import/export. Repeat-all is enabled by default; Space toggles playback while the app is focused.
 
@@ -41,7 +41,9 @@ Requires full Xcode and iOS 17+. From the repository root:
 nix run .#xcode
 ```
 
-The command builds the interface and generates the project only if missing. Select **TagSet-iOS**, your connected iPhone, automatic signing, and your Personal Team. Press **Command-R** to install and launch. Enable Developer Mode on the phone. Keep signing overrides in the ignored `apple/Config/Signing.local.xcconfig`; regenerating the project replaces settings made only in Xcode.
+The command builds the interface and updates the generated project when needed. Select **TagSet-iOS**, your connected iPhone, automatic signing, and your Personal Team. Press **Command-R** to install and launch. Enable Developer Mode on the phone. Keep signing overrides in the ignored `apple/Config/Signing.local.xcconfig`; an existing project team is preserved there on the first update. Other settings made only in Xcode may be replaced. The first build downloads the pinned YouTubeKit Swift package.
+
+iOS resolves HLS streams locally and plays them natively, including while locked or using another app. The native queue handles next/previous, shuffle, repeat, and lock-screen controls with cover artwork. Returning to TagSet refreshes the displayed track and position. Force-quitting the app stops playback. No Google sign-in is used on iOS, so restricted songs or songs without a playable HLS stream may be unavailable. Extraction is unofficial and may need updates when YouTube changes.
 
 For command-line installation using the configured team:
 
@@ -70,9 +72,9 @@ Pull merges additions and preserves local edits; deletions do not propagate. Pus
 
 Default libraries use `Setwise Wrapper/library.json` in Electron's application-data directory, or `SetwiseWrapper/library.json` in iOS Application Support. Settings can select another folder. Legacy storage/encryption identities and Apple bundle IDs are retained to preserve libraries and sign-in through the rename. Use **Export library** for backups and transfer. Offline music downloads are not implemented.
 
-YouTube Music stays hidden behind the player. **Open YouTube Music** provides sign-in and playback prompts. Playback and catalog access require internet; the unofficial integration may need updates when YouTube changes. Hiding the website does not guarantee audio-only downloads or background playback.
+On desktop, YouTube Music stays hidden behind the player. **Open YouTube Music** provides sign-in and playback prompts. Playback and catalog access require internet. Neither playback path guarantees audio-only network transfers.
 
-macOS playback and signed iPhone installation have been verified. Windows/Linux runtime behavior still needs device testing. Music currently stops when locking the iPhone; background playback remains a known limitation. Desktop packages have no distribution signing or notarization, so downloaded copies may trigger OS security prompts.
+macOS playback and integrated iPhone background playback, queue controls, and seeking have been verified. Windows/Linux runtime behavior still needs device testing. Desktop packages have no distribution signing or notarization, so downloaded copies may trigger OS security prompts.
 
 ## Contributing and license
 
