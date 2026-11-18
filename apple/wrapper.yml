@@ -1,4 +1,8 @@
 name: TagSet
+packages:
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit.git
+    revision: 7f75a2299dc329c0b7855afb25d47663a02855cb
 settings:
   base:
     SWIFT_VERSION: '5.0'
@@ -15,8 +19,8 @@ targets:
       - path: ../wrapper/bundle
         type: folder
         buildPhase: resources
-      - path: ../wrapper/player-bridge.js
-        buildPhase: resources
+    dependencies:
+      - package: YouTubeKit
     configFiles:
       Debug: Config/Signing.xcconfig
       Release: Config/Signing.xcconfig

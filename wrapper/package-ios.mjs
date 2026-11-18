@@ -1,4 +1,13 @@
-import { access, mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
+import {
+  access,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildInterface, run } from './packaging.mjs';
@@ -94,10 +103,37 @@ async function build() {
   const manifest = await buildInterface();
   const project = resolve('apple/TagSet.xcodeproj');
   try {
-    await access(project);
-  } catch {
-    run('xcodegen', ['generate', '--spec', 'apple/wrapper.yml']);
+    await access('apple/Config/Signing.local.xcconfig');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    let source = '';
+    try {
+      source = await readFile(join(project, 'project.pbxproj'), 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    const teams = new Set(
+      [...source.matchAll(/DEVELOPMENT_TEAM = "?([A-Z0-9]{10})"?;/g)].map(
+        (match) => match[1],
+      ),
+    );
+    if (teams.size === 1)
+      await writeFile(
+        'apple/Config/Signing.local.xcconfig',
+        `DEVELOPMENT_TEAM = ${[...teams][0]}\n`,
+        { flag: 'wx' },
+      );
   }
+  run('xcodegen', ['generate', '--spec', 'apple/wrapper.yml', '--use-cache']);
+  const packageResolution = join(
+    project,
+    'project.xcworkspace/xcshareddata/swiftpm',
+  );
+  await mkdir(packageResolution, { recursive: true });
+  await copyFile(
+    'apple/Package.resolved',
+    join(packageResolution, 'Package.resolved'),
+  );
   if (values.open) {
     apple('/usr/bin/open', ['-a', 'Xcode', project]);
     return;

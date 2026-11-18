@@ -1,6 +1,8 @@
 import type { WrapperCommand } from '../protocol.js';
+import type { QueueState } from './queue.js';
 
 export const isPhone = /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent);
+export const nativeAudio = window.tagsetNativeAudio === true;
 
 export interface PlaybackMessage {
   type: 'playback';
@@ -13,9 +15,11 @@ export interface PlaybackMessage {
   duration: number;
   title: string;
   artwork?: string | null;
+  loading?: boolean;
 }
 export type HostMessage =
   | PlaybackMessage
+  | { type: 'native-queue'; queue: QueueState }
   | {
       type: 'media-action';
       action: 'next' | 'previous';
@@ -41,6 +45,7 @@ type Operation =
   | 'activateLibraryLocation';
 declare global {
   interface Window {
+    tagsetNativeAudio?: boolean;
     tagsetHost?: {
       send(command: WrapperCommand): void;
       request(operation: Operation, payload?: unknown): Promise<unknown>;
@@ -74,6 +79,7 @@ function receive(value: unknown) {
     else request.resolve(message.result);
   } else if (
     message.type === 'playback' ||
+    message.type === 'native-queue' ||
     (message.type === 'media-action' &&
       (message.action === 'next' || message.action === 'previous')) ||
     typeof message.error === 'string'

@@ -1,4 +1,3 @@
-import AVFoundation
 import CoreFoundation
 import Security
 import SwiftUI
@@ -116,112 +115,56 @@ private enum LibraryFiles {
   }
 }
 
-private final class WrapperController: UIViewController, WKNavigationDelegate, WKUIDelegate,
+private final class WrapperController: UIViewController, WKNavigationDelegate,
   UIAdaptivePresentationControllerDelegate, UIDocumentPickerDelegate
 {
   private let controls = WKWebView()
-  private let music: WKWebView = {
-    let config = WKWebViewConfiguration()
-    config.websiteDataStore = .default()
-    config.allowsInlineMediaPlayback = true
-    config.allowsAirPlayForMediaPlayback = true
-    config.mediaTypesRequiringUserActionForPlayback = []
-    return WKWebView(frame: .zero, configuration: config)
-  }()
-  private let musicContainer = UIView()
+  private var audio: NativeAudioPlayer?
   private let handler = ScriptHandler()
   private var controlsURL: URL?
-  private var bridge = ""
-  private var musicRect: CGRect?
-  private var popups: [WKWebView: UIViewController] = [:]
   private var activeFolder: ScopedLibraryFolder?
   private var locationLoaded = false
   private var folderContinuation: CheckedContinuation<URL?, Error>?
   private var pendingFolder: (token: String, folder: ScopedLibraryFolder?, url: URL, data: String?)?
   private static let maxLibraryBytes = 8 * 1024 * 1024
-  private static let hosts: Set<String> = [
-    "music.youtube.com", "www.youtube.com", "accounts.google.com", "accounts.youtube.com",
-    "www.google.com", "consent.google.com", "consent.youtube.com",
-  ]
-
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = .black
     handler.receive = { [weak self] in self?.receive($0) }
     controls.configuration.userContentController.add(handler, name: "wrapperCommand")
-    music.configuration.userContentController.add(handler, name: "wrapperPlayback")
-    for browser in [controls, music] {
-      browser.navigationDelegate = self
-      browser.uiDelegate = self
-    }
-    musicContainer.clipsToBounds = true
-    musicContainer.addSubview(music)
-    view.addSubview(musicContainer)
+    controls.configuration.userContentController.addUserScript(
+      WKUserScript(
+        source: "window.tagsetNativeAudio = true;", injectionTime: .atDocumentStart,
+        forMainFrameOnly: true))
+    controls.navigationDelegate = self
     controls.isOpaque = true
     controls.backgroundColor = .black
     view.addSubview(controls)
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(refreshPlayback), name: UIApplication.didBecomeActiveNotification,
+      object: nil)
     do {
-      guard let folder = Bundle.main.url(forResource: "bundle", withExtension: nil),
-        let script = Bundle.main.url(forResource: "player-bridge", withExtension: "js")
+      guard let folder = Bundle.main.url(forResource: "bundle", withExtension: nil)
       else { throw failure("Build the wrapper web interface before opening this app.") }
-      bridge = try String(contentsOf: script, encoding: .utf8)
+      audio = try NativeAudioPlayer { [weak self] message in
+        guard UIApplication.shared.applicationState != .background else { return }
+        self?.publish(message)
+      }
       let index = folder.appendingPathComponent("index.html")
       controlsURL = index
       controls.loadFileURL(index, allowingReadAccessTo: folder)
-      try AVAudioSession.sharedInstance().setCategory(.playback)
-      configureBridge(token: nil)
-      music.load(URLRequest(url: URL(string: "https://music.youtube.com/")!))
     } catch { showStartupError(error.localizedDescription) }
   }
 
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     controls.frame = view.safeAreaLayoutGuide.layoutFrame
-    layoutMusic()
   }
 
-  private func layoutMusic() {
-    guard let rect = musicRect else {
-      musicContainer.frame = controls.frame
-      music.frame = CGRect(x: 0, y: 0, width: controls.bounds.width, height: 600)
-      music.isUserInteractionEnabled = false
-      music.accessibilityElementsHidden = true
-      view.sendSubviewToBack(musicContainer)
-      return
-    }
-    let full = rect.offsetBy(dx: controls.frame.minX, dy: controls.frame.minY)
-    let clipped = full.intersection(controls.frame)
-    guard !clipped.isNull, clipped.width > 0, clipped.height > 0 else {
-      music.isUserInteractionEnabled = false
-      music.accessibilityElementsHidden = true
-      view.sendSubviewToBack(musicContainer)
-      return
-    }
-    musicContainer.frame = clipped
-    music.frame = CGRect(
-      origin: CGPoint(x: full.minX - clipped.minX, y: full.minY - clipped.minY), size: full.size)
-    music.isUserInteractionEnabled = true
-    music.accessibilityElementsHidden = false
-    view.bringSubviewToFront(musicContainer)
-  }
-
-  private func configureBridge(token: String?) {
-    let encoded = token.map { "\"\($0)\"" } ?? "null"
-    music.configuration.userContentController.removeAllUserScripts()
-    music.configuration.userContentController.addUserScript(
-      WKUserScript(
-        source: "window.__tagsetLoadToken = \(encoded); \(bridge)", injectionTime: .atDocumentEnd,
-        forMainFrameOnly: true))
-  }
+  @objc private func refreshPlayback() { audio?.synchronize() }
 
   private func receive(_ message: WKScriptMessage) {
     guard message.frameInfo.isMainFrame, let body = message.body as? [String: Any] else { return }
-    if message.name == "wrapperPlayback", message.webView === music,
-      message.frameInfo.request.url?.host == "music.youtube.com"
-    {
-      publish(body)
-      return
-    }
     guard message.name == "wrapperCommand", message.webView === controls,
       message.frameInfo.request.url == controlsURL, let type = body["type"] as? String
     else { return }
@@ -240,54 +183,18 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
       }
       return
     }
-    if type == "layout" {
-      guard let visible = body["visible"] as? Bool,
-        let x = number(body["x"]), let y = number(body["y"]),
-        let width = number(body["width"]), let height = number(body["height"]),
-        width >= 0, height >= 0
-      else { return }
-      musicRect = visible ? CGRect(x: x, y: y, width: width, height: height) : nil
-      layoutMusic()
-      return
-    }
-    if type == "load", let id = body["videoId"] as? String,
-      id.range(of: "^[A-Za-z0-9_-]{11}$", options: .regularExpression) != nil
+    if type == "queue", let action = body["action"] as? [String: Any],
+      let actionType = action["type"] as? String,
+      ["start", "next", "previous", "retry", "toggle", "shuffle", "repeat", "remove"].contains(
+        actionType)
     {
-      let token = body["token"] as? String
-      guard
-        token == nil
-          || token!.range(of: "^[A-Za-z0-9_-]{1,80}$", options: .regularExpression) != nil
-      else { return }
-      configureBridge(token: token)
-      music.load(URLRequest(url: URL(string: "https://music.youtube.com/watch?v=\(id)")!))
-      return
-    }
-    guard music.url?.host == "music.youtube.com" else {
-      report("Return to YouTube Music before controlling playback.")
-      return
-    }
-    var value: Double?
-    switch type {
-    case "play", "pause": break
-    case "seek":
-      guard let position = number(body["value"]), position >= 0, position <= 604800 else { return }
-      value = position
-    case "volume": return
-    default: return
-    }
-    let script = """
-      if (!window.__tagsetControl) {
-        if (command === 'pause') return true;
-        throw new Error('YouTube Music is still loading. Open YouTube Music if playback needs a prompt.');
-      }
-      return await window.__tagsetControl(command, value);
-      """
-    Task { @MainActor in
-      do {
-        _ = try await music.callAsyncJavaScript(
-          script, arguments: ["command": type, "value": value as Any? ?? NSNull()], in: nil,
-          contentWorld: .page)
-      } catch { report(error.localizedDescription) }
+      audio?.dispatch(action)
+    } else if type == "playback-state" {
+      audio?.synchronize()
+    } else if type == "play" || type == "pause" {
+      audio?.command(type)
+    } else if type == "seek", let value = number(body["value"]) {
+      audio?.seek(value)
     }
   }
 
@@ -665,63 +572,22 @@ private final class WrapperController: UIViewController, WKNavigationDelegate, W
     label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     view.addSubview(label)
   }
-  private func allowed(_ url: URL) -> Bool {
-    url.scheme == "https" && url.user == nil && url.password == nil && url.port == nil
-      && Self.hosts.contains(url.host ?? "")
-  }
   func webView(
     _ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
   ) {
-    guard let url = action.request.url else {
-      decisionHandler(.cancel)
-      return
-    }
-    if webView === controls {
-      decisionHandler(url == controlsURL ? .allow : .cancel)
-    } else if action.targetFrame?.isMainFrame == false || allowed(url) {
-      decisionHandler(.allow)
-    } else {
-      report("The wrapper blocked navigation to \(url.host ?? "an unsupported destination").")
-      decisionHandler(.cancel)
-    }
-  }
-  func webView(
-    _ webView: WKWebView, createWebViewWith config: WKWebViewConfiguration,
-    for action: WKNavigationAction, windowFeatures: WKWindowFeatures
-  ) -> WKWebView? {
-    guard webView === music || popups[webView] != nil, let url = action.request.url, allowed(url)
-    else {
-      report("This popup cannot be opened inside the player.")
-      return nil
-    }
-    let popup = WKWebView(frame: .zero, configuration: config)
-    popup.navigationDelegate = self
-    popup.uiDelegate = self
-    let controller = UIViewController()
-    controller.view = popup
-    (popups[webView] ?? self).present(controller, animated: true)
-    controller.presentationController?.delegate = self
-    popups[popup] = controller
-    return popup
-  }
-  func webViewDidClose(_ webView: WKWebView) {
-    popups.removeValue(forKey: webView)?.dismiss(animated: true)
+    decisionHandler(webView === controls && action.request.url == controlsURL ? .allow : .cancel)
   }
   func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
     if presentationController.presentedViewController is UIDocumentPickerViewController {
       folderContinuation?.resume(returning: nil)
       folderContinuation = nil
     }
-    if let entry = popups.first(where: {
-      $0.value === presentationController.presentedViewController
-    }) {
-      popups.removeValue(forKey: entry.key)
-    }
   }
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
     report(error.localizedDescription)
   }
+  func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { webView.reload() }
   func webView(
     _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!,
     withError error: Error

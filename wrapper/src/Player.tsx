@@ -8,9 +8,15 @@ import {
   useState,
 } from 'react';
 import type { Song } from '../../shared/types.js';
-import { emptyQueue, queueReducer } from './queue.js';
+import {
+  emptyQueue,
+  queueReducer,
+  type QueueAction,
+  type QueueState,
+} from './queue.js';
 import {
   isPhone,
+  nativeAudio,
   send,
   subscribe,
   uniqueToken,
@@ -40,6 +46,14 @@ const emptyPlayback: PlaybackMessage = {
   duration: 0,
   title: '',
 };
+function playerReducer(
+  state: QueueState,
+  action: QueueAction | { type: 'snapshot'; state: QueueState },
+) {
+  return action.type === 'snapshot'
+    ? action.state
+    : queueReducer(state, action);
+}
 
 export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   const { t } = useTranslation();
@@ -48,7 +62,11 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     if (window.tagsetHost)
       send({ type: 'normalization', enabled: preferences.normalizeVolume });
   }, [preferences.normalizeVolume]);
-  const [queue, dispatch] = useReducer(queueReducer, emptyQueue);
+  const [queue, localDispatch] = useReducer(playerReducer, emptyQueue);
+  const dispatch = useCallback((action: QueueAction) => {
+    if (nativeAudio) send({ type: 'queue', action });
+    else localDispatch(action);
+  }, []);
   const [playback, setPlayback] = useState(emptyPlayback);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,11 +100,14 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   >(undefined);
   const song = queue.songs[queue.index];
   const videoId = song?.videoId;
-  const navigate = useCallback((type: 'next' | 'previous') => {
-    // Ignore the old page immediately, before React loads the next song.
-    active.current = undefined;
-    dispatch({ type });
-  }, []);
+  const navigate = useCallback(
+    (type: 'next' | 'previous') => {
+      // Ignore the old page immediately, before React loads the next song.
+      active.current = undefined;
+      dispatch({ type });
+    },
+    [dispatch],
+  );
   useImperativeHandle(
     ref,
     () => ({
@@ -102,7 +123,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         dispatch({ type: 'remove', id });
       },
     }),
-    [],
+    [dispatch],
   );
   const closePhonePlayer = useCallback(() => {
     setPhoneExpanded(false);
@@ -126,9 +147,23 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   useEffect(
     () =>
       subscribe((message) => {
+        if (message.type === 'native-queue') {
+          if (nativeAudio) {
+            localDispatch({ type: 'snapshot', state: message.queue });
+            setError(message.queue.error);
+          }
+          return;
+        }
         if ('error' in message) {
           setError(message.error);
           setLoading(false);
+          return;
+        }
+        if (nativeAudio) {
+          if (message.type === 'playback') {
+            setPlayback(message);
+            setLoading(message.loading ?? false);
+          }
           return;
         }
         const request = active.current,
@@ -194,13 +229,17 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
           dispatch({ type: 'playing', value: true });
         } else if (request.started) dispatch({ type: 'playing', value: false });
       }),
-    [navigate],
+    [navigate, dispatch],
   );
+  useEffect(() => {
+    if (nativeAudio) send({ type: 'playback-state' });
+  }, []);
   useEffect(() => {
     if (websiteOpen) surface.current?.scrollIntoView({ block: 'nearest' });
     else if (panel.current) panel.current.scrollTop = 0;
   }, [websiteOpen]);
   useEffect(() => {
+    if (nativeAudio) return;
     if (!videoId) {
       if (active.current) send({ type: 'pause' });
       active.current = undefined;
@@ -240,7 +279,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     return () => window.clearTimeout(timer);
   }, [loading, videoId, queue.revision]);
   useEffect(() => {
-    if (!loading || playback.advertisement) return;
+    if (nativeAudio || !loading || playback.advertisement) return;
     const token = active.current?.token;
     const timer = window.setTimeout(() => {
       if (active.current?.token !== token) return;
@@ -256,6 +295,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     if (window.tagsetHost) send({ type: 'volume', value: volume });
   }, [volume]);
   useEffect(() => {
+    if (nativeAudio) return;
     const element = surface.current;
     if (!element) return;
     let frame = 0,
@@ -327,19 +367,23 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
     };
   }, [websiteOpen, phoneExpanded]);
   const matching =
-    playback.loadToken === active.current?.token &&
+    (nativeAudio || playback.loadToken === active.current?.token) &&
     playback.videoId === song?.videoId;
   const position = matching ? playback.position : 0,
     duration = matching ? playback.duration : 0;
   const playing = loading ? queue.playing : matching && !playback.paused;
   const togglePlayback = useCallback(() => {
     if (!song) return;
+    if (nativeAudio) {
+      dispatch({ type: 'toggle' });
+      return;
+    }
     if (active.current?.ended || (!matching && !loading))
       dispatch({ type: 'retry' });
     else if (!loading && matching && playback.paused && queue.playing)
       send({ type: 'play' });
     else dispatch({ type: 'toggle' });
-  }, [song, matching, loading, playback.paused, queue.playing]);
+  }, [song, matching, loading, playback.paused, queue.playing, dispatch]);
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (
@@ -474,19 +518,21 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
             <span aria-label={t('No cover available')}>♫</span>
           )}
         </div>
-        <button
-          className="text-button wrapper-site-toggle"
-          aria-expanded={websiteOpen}
-          onClick={() => {
-            if (websiteOpen && song && !matching) {
-              if (queue.playing) dispatch({ type: 'retry' });
-              else send({ type: 'pause' });
-            }
-            setWebsiteOpen((value) => !value);
-          }}
-        >
-          {websiteOpen ? t('Close YouTube Music') : t('Open YouTube Music')}
-        </button>
+        {!nativeAudio && (
+          <button
+            className="text-button wrapper-site-toggle"
+            aria-expanded={websiteOpen}
+            onClick={() => {
+              if (websiteOpen && song && !matching) {
+                if (queue.playing) dispatch({ type: 'retry' });
+                else send({ type: 'pause' });
+              }
+              setWebsiteOpen((value) => !value);
+            }}
+          >
+            {websiteOpen ? t('Close YouTube Music') : t('Open YouTube Music')}
+          </button>
+        )}
         {websiteOpen && (
           <p className="field-note">
             {t(
@@ -585,9 +631,11 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         )}
         {loading && loadingNoticeFor === `${videoId}:${queue.revision}` && (
           <p className="notice" role="status">
-            {t(
-              'Opening your song in YouTube Music… Use “Open YouTube Music” if it needs consent or a playback prompt.',
-            )}
+            {nativeAudio
+              ? t('Loading audio…')
+              : t(
+                  'Opening your song in YouTube Music… Use “Open YouTube Music” if it needs consent or a playback prompt.',
+                )}
           </p>
         )}
         {playback.advertisement && (

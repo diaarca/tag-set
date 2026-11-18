@@ -7,12 +7,14 @@ rights and service terms.
 
 Desktop packages include Electron and Chromium; their license files are
 distributed with the runtime (LICENSE and LICENSES.chromium.html).
-The shared interface bundles React, React DOM, and Scheduler under the
-following MIT license:
+The shared interface bundles React, React DOM, and Scheduler. iOS also
+includes YouTubeKit (https://github.com/alexeichhorn/YouTubeKit).
+These dependencies use the following MIT license:
 
 MIT License
 
 Copyright (c) Meta Platforms, Inc. and affiliates.
+Copyright (c) 2022 Alexander Eichhorn
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

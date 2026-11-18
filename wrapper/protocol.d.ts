@@ -1,4 +1,6 @@
 export type WrapperCommand =
+  | { type: 'queue'; action: import('./src/queue.js').QueueAction }
+  | { type: 'playback-state' }
   | { type: 'normalization'; enabled: boolean }
   | { type: 'load'; videoId: string; token?: string }
   | { type: 'play' | 'pause' }

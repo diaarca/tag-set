@@ -1,4 +1,15 @@
 export const french: Record<string, string> = {
+  'Loading audio…': 'Chargement audio…',
+  'This song has no playable HLS stream. Retry or choose another song.':
+    'Ce morceau ne dispose pas de flux HLS lisible. Réessayez ou choisissez un autre morceau.',
+  'This song could not be loaded. Retry or choose another song.':
+    'Ce morceau n’a pas pu être chargé. Réessayez ou choisissez un autre morceau.',
+  'This song could not be played. Retry or choose another song.':
+    'Ce morceau n’a pas pu être lu. Réessayez ou choisissez un autre morceau.',
+  'The song could not be loaded in the background. Open TagSet to retry.':
+    'Le morceau n’a pas pu être chargé en arrière-plan. Ouvrez TagSet pour réessayer.',
+  'The audio session could not be activated. Retry the song.':
+    'La session audio n’a pas pu être activée. Relancez le morceau.',
   'Back to library': 'Retour à la bibliothèque',
   'Compact music player': 'Lecteur compact',
   'Open now playing: {0}': 'Ouvrir la lecture en cours : {0}',

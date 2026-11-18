@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 
 app.setPath('userData', resolve('.build/interface-test'));
 app.whenReady().then(async () => {
@@ -38,6 +40,9 @@ app.whenReady().then(async () => {
     let originalLibrary;
     let locationChanges = 0;
     const commands = [];
+    const native = { exports: {} };
+    runInNewContext(readFileSync('wrapper/bundle/queue.js', 'utf8'), native);
+    let nativeQueue = native.exports.emptyQueue;
     const window = new BrowserWindow({
       show: false,
       width: 1420,
@@ -117,9 +122,34 @@ app.whenReady().then(async () => {
       throw new Error(`Unexpected operation: ${operation}`);
     });
     const report = () => window.webContents.send('wrapper-message', playback);
+    const reportNative = () => {
+      window.webContents.send('wrapper-message', {
+        type: 'native-queue',
+        queue: nativeQueue,
+      });
+      const current = nativeQueue.songs[nativeQueue.index];
+      window.webContents.send('wrapper-message', {
+        type: 'playback',
+        videoId: current?.videoId ?? null,
+        loadToken: null,
+        paused: !nativeQueue.playing,
+        advertisement: false,
+        position: 12,
+        duration: 255,
+        title: current?.title ?? '',
+        loading: false,
+      });
+    };
     ipcMain.on('wrapper-command', (_event, command) => {
       commands.push(command);
-      if (command.type === 'load') {
+      if (command.type === 'queue') {
+        nativeQueue = native.exports.queueReducer(
+          nativeQueue,
+          native.exports.validateQueueAction(command.action),
+        );
+        reportNative();
+      } else if (command.type === 'playback-state') reportNative();
+      else if (command.type === 'load') {
         playback = {
           type: 'playback',
           loadToken: command.token,
@@ -830,10 +860,58 @@ app.whenReady().then(async () => {
       false,
     );
     window.webContents.setUserAgent(desktopAgent);
+    window.webContents.debugger.attach('1.3');
+    await window.webContents.debugger.sendCommand('Page.enable');
+    await window.webContents.debugger.sendCommand(
+      'Page.addScriptToEvaluateOnNewDocument',
+      {
+        source: 'window.tagsetNativeAudio = true;',
+      },
+    );
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor("document.querySelectorAll('.song-row').length === 3");
+    assert.equal(
+      await evaluate("!!document.querySelector('.wrapper-site-toggle')"),
+      false,
+    );
+    await evaluate(
+      "document.querySelector('.primary.play-collection').click()",
+    );
+    await waitFor(
+      "document.querySelector('.now-playing h2')?.textContent === 'Song 1' && !document.querySelector('[aria-label=Seek]').disabled",
+    );
+    await evaluate("document.querySelector('.play-toggle').click()");
+    await waitFor(
+      "document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Play'",
+    );
+    assert.equal(nativeQueue.playing, false);
+    nativeQueue = native.exports.queueReducer(nativeQueue, { type: 'next' });
+    reportNative();
+    await waitFor(
+      "document.querySelector('.now-playing h2')?.textContent === 'Song 2' && document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Pause'",
+    );
+    await evaluate(
+      'document.querySelector(\'.transport [aria-label="Next song"]\').click()',
+    );
+    await waitFor(
+      "document.querySelector('.now-playing h2')?.textContent === 'Song 3'",
+    );
+    assert.equal(nativeQueue.index, 2);
+    await evaluate(
+      'document.querySelector(\'.transport [aria-label="Repeat: all"]\').click()',
+    );
+    assert.equal(nativeQueue.repeat, 'one');
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor(
+      "document.querySelector('.now-playing h2')?.textContent === 'Song 3' && document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Pause'",
+    );
+    assert.equal(nativeQueue.index, 2);
+    assert.equal(nativeQueue.repeat, 'one');
+    window.webContents.debugger.detach();
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, phone player controls/swipes/orientation, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, phone player controls/swipes/orientation, native queue synchronization, and responsive layout.',
     );
     app.quit();
   } catch (error) {

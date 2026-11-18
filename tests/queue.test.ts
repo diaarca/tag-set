@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Song } from '../shared/types.js';
-import { emptyQueue, queueReducer } from '../wrapper/src/queue.js';
+import {
+  emptyQueue,
+  queueReducer,
+  validateQueueAction,
+} from '../wrapper/src/queue.js';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 
 const songs: Song[] = [1, 2, 3].map((id) => ({
   id,
@@ -9,6 +16,64 @@ const songs: Song[] = [1, 2, 3].map((id) => ({
   title: `Song ${id}`,
   artists: ['Artist'],
 }));
+
+test('native queue commands reject malformed songs and commands without changing the queue', () => {
+  assert.deepEqual(validateQueueAction({ type: 'start', songs }), {
+    type: 'start',
+    songs,
+    shuffle: undefined,
+  });
+  for (const action of [
+    null,
+    {},
+    { type: ['next'] },
+    { type: 'snapshot', state: emptyQueue },
+    { type: 'remove', id: -1 },
+    { type: 'start', songs, shuffle: 'yes' },
+    { type: 'start', songs: [songs[0], songs[0]] },
+    { type: 'start', songs: [{ ...songs[0], videoId: 'https://evil.test/' }] },
+    { type: 'start', songs: [{ ...songs[0], artists: [null] }] },
+  ])
+    assert.throws(() => validateQueueAction(action));
+  assert.equal(emptyQueue.songs.length, 0);
+});
+
+test('the native JavaScript runtime uses the same queue transitions as the interface', () => {
+  const source = transpileModule(
+    readFileSync(new URL('../wrapper/src/queue.ts', import.meta.url), 'utf8'),
+    {
+      compilerOptions: {
+        module: ModuleKind.CommonJS,
+        target: ScriptTarget.ES2020,
+      },
+    },
+  ).outputText;
+  const exports = {} as {
+    emptyQueue: typeof emptyQueue;
+    queueReducer: typeof queueReducer;
+    validateQueueAction: typeof validateQueueAction;
+  };
+  runInNewContext(source, { exports });
+  let local = emptyQueue,
+    native = exports.emptyQueue;
+  for (const value of [
+    { type: 'start', songs },
+    { type: 'ended' },
+    { type: 'toggle' },
+    { type: 'previous' },
+    { type: 'remove', id: 1 },
+    { type: 'repeat' },
+    { type: 'ended' },
+  ]) {
+    const action = validateQueueAction(value);
+    local = queueReducer(local, action);
+    native = exports.queueReducer(
+      native,
+      exports.validateQueueAction(JSON.parse(JSON.stringify(value))),
+    );
+    assert.deepEqual(JSON.parse(JSON.stringify(native)), local);
+  }
+});
 
 test('queue snapshots songs, advances, repeats, and responds to deletion', () => {
   let state = queueReducer(
