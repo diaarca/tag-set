@@ -169,7 +169,11 @@ app.whenReady().then(async () => {
     const evaluate = (script) => window.webContents.executeJavaScript(script);
     const waitFor = async (condition) => {
       const deadline = Date.now() + 4000;
-      while (!(await evaluate(condition))) {
+      while (
+        !(typeof condition === 'function'
+          ? condition()
+          : await evaluate(condition))
+      ) {
         assert.ok(Date.now() < deadline, `Timed out: ${condition}`);
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
@@ -907,6 +911,26 @@ app.whenReady().then(async () => {
     );
     assert.equal(nativeQueue.index, 2);
     assert.equal(nativeQueue.repeat, 'one');
+    await evaluate("document.querySelector('.settings-button').click()");
+    await waitFor(
+      "!!document.querySelector('dialog input[type=checkbox]:not(:disabled)')",
+    );
+    const commandCount = commands.length;
+    await evaluate(
+      "document.querySelector('dialog input[type=checkbox]').click()",
+    );
+    await waitFor(
+      "document.querySelector('dialog input[type=checkbox]')?.checked === false && !document.querySelector('dialog input[type=checkbox]').disabled",
+    );
+    assert.equal(JSON.parse(preferences).normalizeVolume, false);
+    await waitFor(() =>
+      commands
+        .slice(commandCount)
+        .some(
+          (command) =>
+            command.type === 'normalization' && command.enabled === false,
+        ),
+    );
     window.webContents.debugger.detach();
     window.destroy();
     clearTimeout(timeout);

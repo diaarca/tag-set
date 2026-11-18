@@ -234,8 +234,6 @@ export const french: Record<string, string> = {
     'Jeton enregistré ; laissez vide pour le conserver',
   'Try again': 'Réessayer',
   'Try another song title or artist.': 'Essayez un autre titre ou artiste.',
-  'Unavailable on iOS with the current player. Use the device volume controls.':
-    'Indisponible sur iOS avec le lecteur actuel. Utilisez les commandes de volume de l’appareil.',
   'Unlink {0}': 'Délier {0}',
   'Unpin tag': 'Désépingler le tag',
   'Up next': 'À suivre',

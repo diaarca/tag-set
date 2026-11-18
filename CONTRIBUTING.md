@@ -17,6 +17,14 @@ Nix provides Node.js, Electron, and XcodeGen on macOS. `npm start` launches the 
 
 CI uses the smaller `nix develop .#ci` shell with Node.js. One Linux job checks source, unit tests, and the interface build; desktop tests and native packaging stay manual.
 
+On macOS, check native loudness metadata handling with Xcode's Swift compiler:
+
+```sh
+mkdir -p .build
+env -u SDKROOT DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcrun --sdk macosx swiftc apple/Wrapper/LoudnessNormalization.swift tests/native-loudness.swift -o .build/native-loudness-tests
+.build/native-loudness-tests
+```
+
 The shared React interface, library engine, and catalog parser live in `wrapper/src`; `wrapper/desktop` and `apple/Wrapper` provide the native hosts. Preserve the JSON library format, inherited tag behavior, and native bridge boundaries. Legacy storage and encryption identifiers intentionally survive the TagSet rename.
 
 ## Changes and pull requests

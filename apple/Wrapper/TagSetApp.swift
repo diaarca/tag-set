@@ -195,6 +195,8 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
       audio?.command(type)
     } else if type == "seek", let value = number(body["value"]) {
       audio?.seek(value)
+    } else if type == "normalization", let enabled = body["enabled"] as? Bool {
+      audio?.setNormalization(enabled)
     }
   }
 

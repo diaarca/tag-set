@@ -59,7 +59,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
   useEffect(() => {
-    if (window.tagsetHost)
+    if (window.tagsetHost || nativeAudio)
       send({ type: 'normalization', enabled: preferences.normalizeVolume });
   }, [preferences.normalizeVolume]);
   const [queue, localDispatch] = useReducer(playerReducer, emptyQueue);

@@ -16,6 +16,9 @@ final class NativeAudioPlayer: NSObject {
   private var loadTask: Task<Void, Never>?
   private var prefetchTask: Task<Void, Never>?
   private var artworkTask: Task<Void, Never>?
+  private var normalizationTask: Task<Void, Never>?
+  private var normalizationEnabled = false
+  private var normalizedSong: (id: String, gain: Float)?
   private var manifests: [String: (url: URL, date: Date)] = [:]
   private var generation = UUID()
   private var loading = false
@@ -90,6 +93,7 @@ final class NativeAudioPlayer: NSObject {
     loadTask?.cancel()
     prefetchTask?.cancel()
     artworkTask?.cancel()
+    normalizationTask?.cancel()
   }
 
   private var song: [String: Any]? {
@@ -147,6 +151,34 @@ final class NativeAudioPlayer: NSObject {
     publishPlayback()
   }
 
+  func setNormalization(_ enabled: Bool) {
+    normalizationEnabled = enabled
+    updateNormalization()
+  }
+
+  private func updateNormalization() {
+    normalizationTask?.cancel()
+    player.volume = 1
+    guard normalizationEnabled, let id = song?["videoId"] as? String else { return }
+    if let cached = normalizedSong, cached.id == id {
+      player.volume = cached.gain
+      return
+    }
+    let generation = generation
+    normalizationTask = Task { @MainActor [weak self] in
+      do {
+        let gain = try await LoudnessNormalization.load(videoID: id)
+        guard let self, !Task.isCancelled, self.generation == generation,
+          self.normalizationEnabled, let gain
+        else { return }
+        self.normalizedSong = (id, gain)
+        self.player.volume = gain
+      } catch {
+        // Missing metadata or a failed lookup leaves playback at its usual volume.
+      }
+    }
+  }
+
   private func reduce(_ action: [String: Any]) throws {
     context.exception = nil
     guard let validated = validator.call(withArguments: [action]), context.exception == nil,
@@ -165,6 +197,7 @@ final class NativeAudioPlayer: NSObject {
     let generation = generation
     player.pause()
     player.replaceCurrentItem(with: nil)
+    updateNormalization()
     itemObserver = nil
     ended = false
     artwork = nil
