@@ -47,7 +47,14 @@ export async function copyApplication(destination, version) {
   for (const [directory, files] of [
     [
       'bundle',
-      ['index.html', 'app.js', 'style.css', 'LICENSE.txt', 'NOTICE.txt'],
+      [
+        'index.html',
+        'app.js',
+        'style.css',
+        'icon.png',
+        'LICENSE.txt',
+        'NOTICE.txt',
+      ],
     ],
     [
       'desktop',

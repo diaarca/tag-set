@@ -20,6 +20,7 @@ async function build() {
     run('/usr/bin/ditto', ['-x', '-k', electronArchive, runtime]);
     await rename(join(runtime, 'Electron.app'), app);
     const resources = join(app, 'Contents/Resources');
+    await cp('wrapper/assets/icon.icns', join(resources, 'electron.icns'));
     for (const filename of ['LICENSE', 'LICENSES.chromium.html'])
       await cp(join(runtime, filename), join(resources, filename));
     await rm(join(resources, 'default_app.asar'), { force: true });

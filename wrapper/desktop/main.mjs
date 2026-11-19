@@ -151,6 +151,7 @@ function createWindow() {
   );
   window = new BrowserWindow({
     title: 'TagSet',
+    icon: join(root, 'bundle/icon.png'),
     width: 1420,
     height: 900,
     minWidth: 380,
@@ -162,6 +163,7 @@ function createWindow() {
       sandbox: true,
     },
   });
+  app.dock?.setIcon(join(root, 'bundle/icon.png'));
   music = new WebContentsView({
     webPreferences: {
       preload: join(root, 'desktop/playback-preload.cjs'),

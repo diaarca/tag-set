@@ -2,6 +2,7 @@ import {
   chmod,
   mkdir,
   mkdtemp,
+  readFile,
   readdir,
   rename,
   rm,
@@ -9,6 +10,7 @@ import {
 } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { buildInterface, copyApplication, run } from './packaging.mjs';
+import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit';
 
 function nsisText(value) {
   return value
@@ -61,6 +63,26 @@ async function build() {
         join(application, 'electron.exe'),
         join(application, 'TagSet.exe'),
       );
+      const executablePath = join(application, 'TagSet.exe');
+      // Branding replaces Electron's vendor signature; packages are unsigned.
+      const executable = NtExecutable.from(await readFile(executablePath), {
+        ignoreCert: true,
+      });
+      const resources = NtExecutableResource.from(executable);
+      const groups = Resource.IconGroupEntry.fromEntries(resources.entries);
+      if (groups.length !== 1)
+        throw new Error('Expected one Electron application icon group.');
+      const icon = Data.IconFile.from(
+        await readFile('wrapper/assets/icon.ico'),
+      );
+      Resource.IconGroupEntry.replaceIconsForResource(
+        resources.entries,
+        groups[0].id,
+        groups[0].lang,
+        icon.icons.map((item) => item.data),
+      );
+      resources.outputResource(executable);
+      await writeFile(executablePath, Buffer.from(executable.generate()));
       const uninstall = join(work, 'uninstall-files.nsh');
       await writeFile(
         uninstall,
@@ -72,6 +94,7 @@ async function build() {
         `-DSOURCE_DIR=${nsisText(application)}`,
         `-DOUTPUT_FILE=${nsisText(installer)}`,
         `-DUNINSTALL_FILES=${nsisText(uninstall)}`,
+        `-DAPP_ICON=${nsisText(resolve('wrapper/assets/icon.ico'))}`,
         resolve('wrapper/windows-installer.nsi'),
       ]);
       await rename(installer, join(output, `${base}-setup.exe`));
