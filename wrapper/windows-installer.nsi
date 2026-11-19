@@ -8,6 +8,8 @@ InstallDir "$LOCALAPPDATA\Programs\TagSet"
 ; Keep the installation identity so existing installs are upgraded.
 InstallDirRegKey HKCU "Software\Setwise" "InstallDir"
 SetCompressor /SOLID lzma
+!define MUI_ICON "${APP_ICON}"
+!define MUI_UNICON "${APP_ICON}"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_INSTFILES
@@ -27,6 +29,7 @@ Section "Install"
   WriteRegStr HKCU "Software\Setwise" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "DisplayName" "TagSet"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "DisplayIcon" "$INSTDIR\TagSet.exe,0"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Setwise" "NoRepair" 1

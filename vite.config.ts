@@ -14,6 +14,13 @@ export default defineConfig({
       generateBundle() {
         this.emitFile({
           type: 'asset',
+          fileName: 'icon.png',
+          source: readFileSync(
+            new URL('./wrapper/assets/icon.png', import.meta.url),
+          ),
+        });
+        this.emitFile({
+          type: 'asset',
           fileName: 'queue.js',
           source: transpileModule(
             readFileSync(

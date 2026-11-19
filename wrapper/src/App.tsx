@@ -158,11 +158,7 @@ export function App() {
             chooseTag(null);
           }}
         >
-          <span className="brand-mark">
-            <i />
-            <i />
-            <i />
-          </span>
+          <img className="brand-mark" src="icon.png" alt="" />
           {t('TagSet')}
           <span className="brand-period">.</span>
         </a>

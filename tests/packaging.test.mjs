@@ -15,7 +15,14 @@ test('packages runtime files and licenses without adjacent private files', async
   await mkdir('.build', { recursive: true });
   const root = await mkdtemp(resolve('.build/packaging-'));
   const expected = {
-    bundle: ['index.html', 'app.js', 'style.css', 'LICENSE.txt', 'NOTICE.txt'],
+    bundle: [
+      'index.html',
+      'app.js',
+      'style.css',
+      'icon.png',
+      'LICENSE.txt',
+      'NOTICE.txt',
+    ],
     desktop: [
       'main.mjs',
       'catalog.mjs',
