@@ -64,6 +64,7 @@ export async function copyApplication(destination, version) {
         'github.mjs',
         'storage.mjs',
         'navigation.mjs',
+        'sleep-timer.mjs',
         'preload.cjs',
         'playback-preload.cjs',
       ],

@@ -2,7 +2,7 @@
 
 A local music library with tags, inherited playlists, and YouTube Music playback. Electron runs the desktop app. iPhone/iPad use the same web interface with native AVPlayer audio and queue handling. No local server is required. [Source code](https://github.com/diaarca/tag-set).
 
-Songs inherit artist tags. Parent tags include their descendants' songs, without duplicates or cycles. Tags support pins, renaming, and deletion. Search/import songs and playlists, play collections in order or shuffled, and transfer libraries through JSON import/export. Repeat-all is enabled by default; Space toggles playback while the app is focused.
+Songs inherit artist tags. Parent tags include their descendants' songs, without duplicates or cycles. Tags support pins, renaming, and deletion. Search/import songs and playlists, play collections in order or shuffled, and transfer libraries through JSON import/export. Repeat-all is enabled by default; Space toggles playback while the app is focused. The player’s **Sleep timer** pauses playback after a chosen duration, including in the background on iOS. Change the duration to restart it or choose **Cancel timer**. Timers count elapsed time even while paused and reset when the app quits.
 
 On phones, a fixed bottom bar shows the song and playback controls. Tap its cover/title to open Now Playing; use **Back to library** or swipe down from the top of the panel to return. Desktop and iPad layouts keep the existing player panel. This also prepares the interface for Android phones; Android packaging is not yet available.
 

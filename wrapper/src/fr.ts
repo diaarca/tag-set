@@ -1,4 +1,9 @@
 export const french: Record<string, string> = {
+  'Sleep timer': 'Minuteur de veille',
+  Off: 'Désactivé',
+  'Pause in {0}': 'Pause dans {0}',
+  '{0} min': '{0} min',
+  'Cancel timer': 'Annuler le minuteur',
   'Reset library': 'Réinitialiser la bibliothèque',
   'Remove all songs and tags from the selected library. Settings and credentials are kept.':
     'Supprimez tous les morceaux et tags de la bibliothèque sélectionnée. Les paramètres et identifiants sont conservés.',

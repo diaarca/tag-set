@@ -40,6 +40,13 @@ app.whenReady().then(async () => {
     let originalLibrary;
     let locationChanges = 0;
     const commands = [];
+    let sleepDeadline = null;
+    const reportSleep = (expired = false) =>
+      window.webContents.send('wrapper-message', {
+        type: 'sleep-timer',
+        expiresAt: sleepDeadline,
+        expired,
+      });
     const native = { exports: {} };
     runInNewContext(readFileSync('wrapper/bundle/queue.js', 'utf8'), native);
     let nativeQueue = native.exports.emptyQueue;
@@ -142,14 +149,21 @@ app.whenReady().then(async () => {
     };
     ipcMain.on('wrapper-command', (_event, command) => {
       commands.push(command);
-      if (command.type === 'queue') {
+      if (command.type === 'sleep-timer') {
+        sleepDeadline = command.minutes
+          ? Date.now() + command.minutes * 60_000
+          : null;
+        reportSleep();
+      } else if (command.type === 'queue') {
         nativeQueue = native.exports.queueReducer(
           nativeQueue,
           native.exports.validateQueueAction(command.action),
         );
         reportNative();
-      } else if (command.type === 'playback-state') reportNative();
-      else if (command.type === 'load') {
+      } else if (command.type === 'playback-state') {
+        reportNative();
+        reportSleep();
+      } else if (command.type === 'load') {
         playback = {
           type: 'playback',
           loadToken: command.token,
@@ -186,6 +200,17 @@ app.whenReady().then(async () => {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       })()`);
       await new Promise((resolve) => setTimeout(resolve, 25));
+    };
+    const setSleepTimer = async (minutes) => {
+      await evaluate(`(() => {
+        const select = document.querySelector('.sleep-timer select');
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, '${minutes}');
+        select.dispatchEvent(new Event('change', {bubbles: true}));
+      })()`);
+      await waitFor(() => sleepDeadline !== null || minutes === 0);
+      await waitFor(
+        `document.querySelector('.sleep-timer select').value === '${minutes ? 'active' : '0'}'`,
+      );
     };
     const press = (key) =>
       evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
@@ -576,6 +601,23 @@ app.whenReady().then(async () => {
     await waitFor(
       "document.querySelector('.now-playing h2')?.textContent === 'Song 1'",
     );
+    await waitFor(
+      "document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Pause'",
+    );
+    await setSleepTimer(1);
+    await setSleepTimer(30);
+    await evaluate("document.querySelector('.sleep-timer button').click()");
+    await waitFor(() => sleepDeadline === null);
+    await setSleepTimer(1);
+    sleepDeadline = null;
+    reportSleep(true);
+    await waitFor(
+      "document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Play' && document.querySelector('.sleep-timer select').value === '0'",
+    );
+    await evaluate("document.querySelector('.play-toggle').click()");
+    await waitFor(
+      "document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Pause'",
+    );
     const beforeLocationCommands = commands.length;
     const otherLibrary = JSON.stringify({
       version: 1,
@@ -905,12 +947,18 @@ app.whenReady().then(async () => {
       'document.querySelector(\'.transport [aria-label="Repeat: all"]\').click()',
     );
     assert.equal(nativeQueue.repeat, 'one');
+    await setSleepTimer(5);
     await window.loadFile(resolve('wrapper/bundle/index.html'));
     await waitFor(
       "document.querySelector('.now-playing h2')?.textContent === 'Song 3' && document.querySelector('.play-toggle')?.getAttribute('aria-label') === 'Pause'",
     );
     assert.equal(nativeQueue.index, 2);
     assert.equal(nativeQueue.repeat, 'one');
+    await waitFor(
+      "document.querySelector('.sleep-timer select').value === 'active'",
+    );
+    await setSleepTimer(0);
+    assert.equal(nativeQueue.playing, true);
     await evaluate("document.querySelector('.settings-button').click()");
     await waitFor(
       "!!document.querySelector('dialog input[type=checkbox]:not(:disabled)')",

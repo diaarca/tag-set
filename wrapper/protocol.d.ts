@@ -1,6 +1,7 @@
 export type WrapperCommand =
   | { type: 'queue'; action: import('./src/queue.js').QueueAction }
   | { type: 'playback-state' }
+  | { type: 'sleep-timer'; minutes: number }
   | { type: 'normalization'; enabled: boolean }
   | { type: 'load'; videoId: string; token?: string }
   | { type: 'play' | 'pause' }
