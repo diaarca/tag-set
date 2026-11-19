@@ -102,6 +102,33 @@ test('library import merges without overwriting edits and rejects combined cycle
   assert.equal(disk.value, before);
 });
 
+test('library reset persists an empty library and preserves saved data if writing fails', async () => {
+  const original = new LibraryStore();
+  const track = original.saveSong(song(1));
+  const parent = original.createTag({ name: 'Pinned' });
+  original.updateTag(parent, { pinned: true });
+  const child = original.createTag({ name: 'Child' });
+  original.relate(parent, child, true);
+  original.assign(track, child, true);
+  const before = JSON.stringify(original.snapshot());
+  const disk = memoryHost(before);
+  const client = new LibraryApi(disk.host, offlineCatalog);
+  const empty = { songs: [], tags: [], edges: [] };
+  assert.deepEqual(await client.request('/library', 'DELETE'), empty);
+  assert.deepEqual(JSON.parse(disk.value!), new LibraryStore().snapshot());
+  const restarted = new LibraryApi(disk.host, offlineCatalog);
+  assert.deepEqual(await restarted.request('/library'), empty);
+  await restarted.request('/songs', 'POST', song(2));
+  assert.equal(((await restarted.request('/songs')) as unknown[]).length, 1);
+
+  const failing = memoryHost(before);
+  failing.fail = true;
+  const failedClient = new LibraryApi(failing.host, offlineCatalog);
+  await assert.rejects(failedClient.request('/library', 'DELETE'), /Disk full/);
+  assert.equal(failing.value, before);
+  assert.equal(failing.writes, 0);
+});
+
 test('unreadable or newer saved libraries are never replaced with an empty library', async () => {
   for (const raw of ['{broken', '{"version":2}', '{"version":1,"songs":[]}']) {
     const disk = memoryHost(raw),

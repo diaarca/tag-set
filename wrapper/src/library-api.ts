@@ -112,8 +112,13 @@ export class LibraryApi {
         );
       throw new AppError(404, 'Not found.');
     }
-    const staged = new LibraryStore(this.library.snapshot());
-    const result = await this.mutate(staged, url.pathname, method, body);
+    const resetting = method === 'DELETE' && url.pathname === '/library';
+    const staged = new LibraryStore(
+      resetting ? undefined : this.library.snapshot(),
+    );
+    const result = resetting
+      ? staged.library()
+      : await this.mutate(staged, url.pathname, method, body);
     const data = JSON.stringify(staged.snapshot());
     if (new TextEncoder().encode(data).byteLength > 8 * 1024 * 1024)
       throw new AppError(

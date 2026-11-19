@@ -1,4 +1,13 @@
 export const french: Record<string, string> = {
+  'Reset library': 'Réinitialiser la bibliothèque',
+  'Remove all songs and tags from the selected library. Settings and credentials are kept.':
+    'Supprimez tous les morceaux et tags de la bibliothèque sélectionnée. Les paramètres et identifiants sont conservés.',
+  'This cannot be undone. Export a backup first if needed. The selected library file will be emptied, including in a cloud-synced folder. GitHub is only changed by a manual push.':
+    'Cette action est irréversible. Exportez une sauvegarde si nécessaire. Le fichier de la bibliothèque sélectionnée sera vidé, même dans un dossier synchronisé dans le cloud. GitHub ne sera modifié que par un envoi manuel.',
+  'Delete all songs and tags': 'Supprimer tous les morceaux et tags',
+  'Library reset.': 'Bibliothèque réinitialisée.',
+  'The library could not be reset.':
+    'La bibliothèque n’a pas pu être réinitialisée.',
   'Loading audio…': 'Chargement audio…',
   'This song has no playable HLS stream. Retry or choose another song.':
     'Ce morceau ne dispose pas de flux HLS lisible. Réessayez ou choisissez un autre morceau.',
