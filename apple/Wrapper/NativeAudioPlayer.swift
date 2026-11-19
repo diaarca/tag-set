@@ -436,8 +436,17 @@ final class NativeAudioPlayer: NSObject {
       let (data, response) = try await URLSession.shared.data(from: url)
       guard !Task.isCancelled, self.generation == generation,
         (response as? HTTPURLResponse)?.statusCode == 200,
-        data.count <= 2 * 1024 * 1024, let image = UIImage(data: data)
+        data.count <= 2 * 1024 * 1024, let source = UIImage(data: data)?.cgImage
       else { return }
+      // hqdefault includes a letterboxed 16:9 image; keep its central square.
+      let side =
+        source.width * 3 == source.height * 4
+        ? source.width * 9 / 16 : min(source.width, source.height)
+      let rect = CGRect(
+        x: (source.width - side) / 2, y: (source.height - side) / 2,
+        width: side, height: side)
+      guard let cropped = source.cropping(to: rect) else { return }
+      let image = UIImage(cgImage: cropped)
       artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
       publishPlayback()
     } catch {

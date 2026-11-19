@@ -24,6 +24,7 @@ import {
 } from './host.js';
 import '../protocol.js';
 import { SleepTimer } from './SleepTimer';
+import { CoverImage } from './CoverImage';
 import { usePreferences, useTranslation } from './Preferences';
 
 export interface PlayerHandle {
@@ -511,11 +512,10 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
         </div>
         <div className="wrapper-cover">
           {image ? (
-            <img
+            <CoverImage
               key={image}
               src={image}
               alt={t('Cover for {0}', song?.title ?? t('the current song'))}
-              referrerPolicy="no-referrer"
               onError={() => {
                 if (image === cover) setFailedArtwork(image);
                 else setFailedThumbnail(image);
@@ -702,10 +702,10 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
           >
             <span className="mini-player-cover" aria-hidden="true">
               {image ? (
-                <img
+                <CoverImage
+                  key={image}
                   src={image}
                   alt=""
-                  referrerPolicy="no-referrer"
                   onError={() => {
                     if (image === cover) setFailedArtwork(image);
                     else setFailedThumbnail(image);

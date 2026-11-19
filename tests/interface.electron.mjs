@@ -62,7 +62,7 @@ app.whenReady().then(async () => {
     });
     window.webContents.session.webRequest.onBeforeRequest(
       { urls: ['https://*/*', 'http://*/*'] },
-      (_details, done) => done({ cancel: true }),
+      (details, done) => done({ cancel: details.url.startsWith('http:') }),
     );
     ipcMain.handle('wrapper-request', (_event, operation, payload) => {
       if (operation === 'libraryLocation')
@@ -127,6 +127,16 @@ app.whenReady().then(async () => {
         return null;
       }
       throw new Error(`Unexpected operation: ${operation}`);
+    });
+    await window.webContents.session.protocol.handle('https', (request) => {
+      const url = new URL(request.url);
+      if (url.pathname === '/missing')
+        return new Response(null, { status: 404 });
+      const padded = url.hostname === 'i.ytimg.com';
+      return new Response(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${padded ? 480 : 300}" height="${padded ? 360 : 300}"><rect width="100%" height="100%" fill="black"/><rect x="${padded ? 105 : 0}" y="${padded ? 45 : 0}" width="${padded ? 270 : 300}" height="${padded ? 270 : 300}" fill="purple"/></svg>`,
+        { headers: { 'Content-Type': 'image/svg+xml' } },
+      );
     });
     const report = () => window.webContents.send('wrapper-message', playback);
     const reportNative = () => {
@@ -420,6 +430,19 @@ app.whenReady().then(async () => {
       "document.querySelector('.now-playing h2')?.textContent === 'Song 2' && !document.querySelector('[aria-label=Seek]').disabled",
     );
     assert.equal(playback.videoId, songs[1].videoId);
+    await waitFor(
+      "document.querySelector('.wrapper-cover img')?.style.transform.startsWith('scale(1.33333')",
+    );
+    playback.artwork = 'https://lh3.googleusercontent.com/album';
+    report();
+    await waitFor(
+      "document.querySelector('.wrapper-cover img')?.naturalWidth === 300 && document.querySelector('.wrapper-cover img').style.transform === ''",
+    );
+    playback.artwork = 'https://lh3.googleusercontent.com/missing';
+    report();
+    await waitFor(
+      "document.querySelector('.wrapper-cover img')?.src.includes('hqdefault.jpg') && document.querySelector('.wrapper-cover img').style.transform.startsWith('scale(1.33333')",
+    );
     assert.equal(
       await evaluate(
         "document.querySelector('[aria-label=Shuffle]').getAttribute('aria-pressed')",
@@ -776,6 +799,9 @@ app.whenReady().then(async () => {
       );
       await waitFor(
         "document.querySelector('.mini-player-details strong')?.textContent === 'Song 1' && !!document.querySelector('.phone-mini-player [aria-label=Pause]')",
+      );
+      await waitFor(
+        "document.querySelector('.mini-player-cover img')?.style.transform.startsWith('scale(1.33333')",
       );
       await evaluate('window.scrollTo(0, 100)');
       const libraryScroll = await evaluate('window.scrollY');
