@@ -64,6 +64,8 @@ Set a minimum song count to hide small artist tags from the sidebar. The default
 
 Choose the folder separately on each device. Wait for the provider to finish syncing, then use **Reload library** or reopen TagSet to read external changes. Avoid simultaneous edits: cloud-provider conflicts are not merged automatically. Settings and credentials stay private on each device.
 
+**Reset library** asks for confirmation, then removes all songs and tags from the selected file and stops playback. Export a backup first if needed. Cloud folders sync this reset; GitHub changes only when you push. Settings and credentials are kept.
+
 For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. Use **Pull from GitHub** before **Push to GitHub**, including before the first push to an empty library repository. A private repository keeps your library private. No Git installation is needed.
 
 Pull merges additions and preserves local edits; deletions do not propagate. Push writes `tagset-library.json` and rejects unseen remote changes. Tokens are stored using the desktop system keychain or iOS Keychain, separately from library exports; Linux requires an available system keyring. GitHub sharing is manual.

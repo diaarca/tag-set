@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { api } from './api';
 import { usePreferences, useTranslation } from './Preferences';
 import { GitHubSharing } from './GitHubSharing';
 import { LibraryLocation } from './LibraryLocation';
@@ -14,6 +16,28 @@ export function Settings({
 }) {
   const { t } = useTranslation();
   const { preferences, busy, error, save } = usePreferences();
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetDone, setResetDone] = useState(false);
+  const reset = async () => {
+    setResetting(true);
+    setResetError('');
+    try {
+      await api('/library', 'DELETE');
+      onLibraryChanged();
+      setConfirmReset(false);
+      setResetDone(true);
+    } catch (error) {
+      setResetError(
+        error instanceof Error
+          ? error.message
+          : 'The library could not be reset.',
+      );
+    } finally {
+      setResetting(false);
+    }
+  };
   return (
     <>
       <section className="editor-section settings-section">
@@ -97,6 +121,53 @@ export function Settings({
         key={`${preferences.githubRepository}/${preferences.githubBranch}/${libraryVersion}`}
         onImported={onImported}
       />
+      <section className="editor-section library-reset">
+        <h3>{t('Reset library')}</h3>
+        <p className="field-note">
+          {t(
+            'Remove all songs and tags from the selected library. Settings and credentials are kept.',
+          )}
+        </p>
+        <fieldset disabled={resetting}>
+          {confirmReset ? (
+            <div className="notice" role="alert">
+              <p>
+                {t(
+                  'This cannot be undone. Export a backup first if needed. The selected library file will be emptied, including in a cloud-synced folder. GitHub is only changed by a manual push.',
+                )}
+              </p>
+              <div className="button-row">
+                <button type="button" onClick={() => void reset()}>
+                  {t('Delete all songs and tags')}
+                </button>
+                <button type="button" onClick={() => setConfirmReset(false)}>
+                  {t('Cancel')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmReset(true);
+                setResetDone(false);
+              }}
+            >
+              {t('Reset library')}
+            </button>
+          )}
+        </fieldset>
+        {resetDone && (
+          <p className="notice" role="status">
+            {t('Library reset.')}
+          </p>
+        )}
+        {resetError && (
+          <p className="notice error" role="alert">
+            {t(resetError)}
+          </p>
+        )}
+      </section>
       {error && (
         <p className="notice error" role="alert">
           {t(error)}

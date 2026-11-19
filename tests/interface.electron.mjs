@@ -931,11 +931,43 @@ app.whenReady().then(async () => {
             command.type === 'normalization' && command.enabled === false,
         ),
     );
+    const beforeReset = saved;
+    const savedPreferences = preferences;
+    const savedToken = githubHasToken;
+    const remoteLibrary = JSON.stringify(pushedLibrary);
+    const resetClick = (label) =>
+      evaluate(
+        `Array.from(document.querySelectorAll('.library-reset button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`,
+      );
+    await resetClick('Reset library');
+    await waitFor("!!document.querySelector('.library-reset [role=alert]')");
+    assert.equal(saved, beforeReset);
+    await resetClick('Cancel');
+    await waitFor("!document.querySelector('.library-reset [role=alert]')");
+    assert.equal(saved, beforeReset);
+    await resetClick('Reset library');
+    await waitFor("!!document.querySelector('.library-reset [role=alert]')");
+    await resetClick('Delete all songs and tags');
+    await waitFor(
+      "document.querySelector('.library-reset [role=status]')?.textContent === 'Library reset.'",
+    );
+    await waitFor(() => nativeQueue.songs.length === 0 && !nativeQueue.playing);
+    assert.deepEqual(JSON.parse(saved).songs, []);
+    assert.deepEqual(JSON.parse(saved).tags, []);
+    assert.equal(preferences, savedPreferences);
+    assert.equal(githubHasToken, savedToken);
+    assert.equal(JSON.stringify(pushedLibrary), remoteLibrary);
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor("!!document.querySelector('.empty-state')");
+    assert.equal(
+      await evaluate("document.querySelectorAll('.song-row').length"),
+      0,
+    );
     window.webContents.debugger.detach();
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, phone player controls/swipes/orientation, native queue synchronization, and responsive layout.',
+      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, library reset confirmation/cancellation/persistence, phone player controls/swipes/orientation, native queue synchronization, and responsive layout.',
     );
     app.quit();
   } catch (error) {
