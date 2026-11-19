@@ -98,6 +98,16 @@ test('wrapper validates its playback and layout command boundary', () => {
     validateCommand({ type: 'execute', script: 'untrusted' }),
   );
   assert.throws(() => validateCommand(null));
+  assert.deepEqual(validateCommand({ type: 'sleep-timer', minutes: 30 }), {
+    type: 'sleep-timer',
+    minutes: 30,
+  });
+  assert.deepEqual(validateCommand({ type: 'sleep-timer', minutes: 0 }), {
+    type: 'sleep-timer',
+    minutes: 0,
+  });
+  for (const minutes of [-1, 181, 1.5, NaN, Infinity, '30', true])
+    assert.throws(() => validateCommand({ type: 'sleep-timer', minutes }));
   assert.throws(() =>
     validateCommand({ type: 'load', videoId: ['EsAQYAeqxD4'] }),
   );

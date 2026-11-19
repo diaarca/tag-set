@@ -189,6 +189,8 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
         actionType)
     {
       audio?.dispatch(action)
+    } else if type == "sleep-timer", let minutes = number(body["minutes"]) {
+      audio?.setSleepTimer(minutes: minutes)
     } else if type == "playback-state" {
       audio?.synchronize()
     } else if type == "play" || type == "pause" {

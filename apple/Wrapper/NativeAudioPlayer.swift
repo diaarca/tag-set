@@ -27,6 +27,9 @@ final class NativeAudioPlayer: NSObject {
   private var timeObserver: Any?
   private var itemObserver: NSKeyValueObservation?
   private var artwork: MPMediaItemArtwork?
+  private var sleepDeadline: Date?
+  private var sleepTimer: Timer?
+  private var sleepExpired = false
   private var remoteTargets: [(MPRemoteCommand, Any)] = []
 
   init(publish: @escaping ([String: Any]) -> Void) throws {
@@ -88,6 +91,7 @@ final class NativeAudioPlayer: NSObject {
   }
 
   deinit {
+    sleepTimer?.invalidate()
     if let timeObserver { player.removeTimeObserver(timeObserver) }
     for (command, target) in remoteTargets { command.removeTarget(target) }
     loadTask?.cancel()
@@ -147,8 +151,47 @@ final class NativeAudioPlayer: NSObject {
   }
 
   func synchronize() {
+    expireSleepTimer()
+    publishSleepTimer()
     publish(["type": "native-queue", "queue": queue])
     publishPlayback()
+  }
+
+  func setSleepTimer(minutes: Double) {
+    guard minutes.isFinite, minutes.rounded() == minutes, minutes >= 0, minutes <= 180 else {
+      return
+    }
+    sleepTimer?.invalidate()
+    sleepExpired = false
+    sleepDeadline = minutes > 0 ? Date().addingTimeInterval(minutes * 60) : nil
+    if let deadline = sleepDeadline {
+      sleepTimer = Timer.scheduledTimer(
+        withTimeInterval: max(0.01, deadline.timeIntervalSinceNow), repeats: false
+      ) { [weak self] _ in
+        Task { @MainActor in self?.expireSleepTimer() }
+      }
+    }
+    publishSleepTimer()
+  }
+
+  private func publishSleepTimer() {
+    publish([
+      "type": "sleep-timer",
+      "expiresAt": sleepDeadline.map { $0.timeIntervalSince1970 * 1000 } as Any? ?? NSNull(),
+      "expired": sleepExpired,
+    ])
+  }
+
+  @discardableResult
+  private func expireSleepTimer() -> Bool {
+    guard let deadline = sleepDeadline, deadline <= Date() else { return false }
+    sleepTimer?.invalidate()
+    sleepDeadline = nil
+    sleepExpired = true
+    resumeAfterInterruption = false
+    publishSleepTimer()
+    command("pause")
+    return true
   }
 
   func setNormalization(_ enabled: Bool) {
@@ -295,6 +338,8 @@ final class NativeAudioPlayer: NSObject {
   }
 
   private func play() {
+    if expireSleepTimer() { return }
+    sleepExpired = false
     guard !loading, player.currentItem != nil else { return }
     do {
       try AVAudioSession.sharedInstance().setCategory(
@@ -321,6 +366,7 @@ final class NativeAudioPlayer: NSObject {
     guard let item = notification.object as? AVPlayerItem, player.currentItem === item else {
       return
     }
+    if expireSleepTimer() { return }
     ended = true
     dispatch(["type": "ended"])
   }
@@ -352,6 +398,7 @@ final class NativeAudioPlayer: NSObject {
   }
 
   private func publishPlayback() {
+    if expireSleepTimer() { return }
     let position = player.currentTime().seconds
     let duration = player.currentItem?.duration.seconds ?? 0
     let id = song?["videoId"] as? String

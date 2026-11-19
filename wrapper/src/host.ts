@@ -18,6 +18,7 @@ export interface PlaybackMessage {
   loading?: boolean;
 }
 export type HostMessage =
+  | { type: 'sleep-timer'; expiresAt: number | null; expired: boolean }
   | PlaybackMessage
   | { type: 'native-queue'; queue: QueueState }
   | {
@@ -78,6 +79,7 @@ function receive(value: unknown) {
       request.reject(new Error(message.error));
     else request.resolve(message.result);
   } else if (
+    message.type === 'sleep-timer' ||
     message.type === 'playback' ||
     message.type === 'native-queue' ||
     (message.type === 'media-action' &&

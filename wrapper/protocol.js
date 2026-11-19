@@ -62,6 +62,14 @@
   function validateCommand(value) {
     if (!value || typeof value !== 'object')
       throw new Error('Invalid command.');
+    if (value.type === 'playback-state') return { type: value.type };
+    if (
+      value.type === 'sleep-timer' &&
+      Number.isInteger(value.minutes) &&
+      value.minutes >= 0 &&
+      value.minutes <= 180
+    )
+      return { type: value.type, minutes: value.minutes };
     if (value.type === 'play' || value.type === 'pause')
       return { type: value.type };
     if (value.type === 'normalization' && typeof value.enabled === 'boolean')

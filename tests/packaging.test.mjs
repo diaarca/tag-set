@@ -29,6 +29,7 @@ test('packages runtime files and licenses without adjacent private files', async
       'github.mjs',
       'storage.mjs',
       'navigation.mjs',
+      'sleep-timer.mjs',
       'preload.cjs',
       'playback-preload.cjs',
     ],

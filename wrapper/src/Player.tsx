@@ -23,6 +23,7 @@ import {
   type PlaybackMessage,
 } from './host.js';
 import '../protocol.js';
+import { SleepTimer } from './SleepTimer';
 import { usePreferences, useTranslation } from './Preferences';
 
 export interface PlayerHandle {
@@ -147,6 +148,15 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
   useEffect(
     () =>
       subscribe((message) => {
+        if (message.type === 'sleep-timer') {
+          if (!nativeAudio && message.expired) {
+            if (active.current) active.current.expectedPlaying = false;
+            setLoading(false);
+            setPlayback((previous) => ({ ...previous, paused: true }));
+            dispatch({ type: 'playing', value: false });
+          }
+          return;
+        }
         if (message.type === 'native-queue') {
           if (nativeAudio) {
             localDispatch({ type: 'snapshot', state: message.queue });
@@ -231,9 +241,6 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
       }),
     [navigate, dispatch],
   );
-  useEffect(() => {
-    if (nativeAudio) send({ type: 'playback-state' });
-  }, []);
   useEffect(() => {
     if (websiteOpen) surface.current?.scrollIntoView({ block: 'nearest' });
     else if (panel.current) panel.current.scrollTop = 0;
@@ -616,6 +623,7 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
             {queue.repeat === 'one' ? '↻₁' : '↻'}
           </button>
         </div>
+        <SleepTimer />
         {window.tagsetHost && (
           <label className="volume-row">
             {t('Volume')}

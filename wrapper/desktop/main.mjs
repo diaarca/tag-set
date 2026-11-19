@@ -20,6 +20,7 @@ import {
   libraryText,
 } from './storage.mjs';
 import { catalogRequest } from './catalog.mjs';
+import { createSleepTimer } from './sleep-timer.mjs';
 import { createTrackNavigation } from './navigation.mjs';
 const { allowedNavigation, validateCommand, artworkURL } =
   globalThis.tagsetProtocol;
@@ -69,6 +70,15 @@ const readGitHubToken = async () => {
 };
 const github = createGitHubClient(readGitHubToken);
 let loadTrack;
+const pauseForSleep = () => {
+  if (!music || music.webContents.isDestroyed()) return;
+  void music.webContents
+    .executeJavaScript(
+      `(async () => { try { await window.__tagsetControl?.('pause'); } finally { document.querySelectorAll('video, audio').forEach(media => media.pause()); } })()`,
+    )
+    .catch((error) => report({ error: error.message }));
+};
+const sleepTimer = createSleepTimer(report, pauseForSleep);
 
 function applyFrame() {
   if (!musicFrame || !window || !music) return;
@@ -207,6 +217,7 @@ function createWindow() {
   void window.loadURL(uiURL);
   openMusic('https://music.youtube.com/');
   window.on('closed', () => {
+    sleepTimer.set(0);
     music.webContents.close();
     window = undefined;
   });
@@ -232,6 +243,10 @@ ipcMain.on('wrapper-playback', (event, value) => {
         action: value.action,
         loadToken,
       });
+    return;
+  }
+  if (sleepTimer.expired) {
+    if (value.paused === false) pauseForSleep();
     return;
   }
   const identity = (id) =>
@@ -342,6 +357,15 @@ ipcMain.on('wrapper-command', async (event, value) => {
   if (!trusted(event)) return;
   try {
     const command = validateCommand(value);
+    if (command.type === 'sleep-timer') {
+      sleepTimer.set(command.minutes);
+      return;
+    }
+    if (command.type === 'playback-state') {
+      sleepTimer.synchronize();
+      return;
+    }
+    if (command.type === 'play' || command.type === 'load') sleepTimer.resume();
     if (command.type === 'layout') {
       musicFrame = command;
       applyFrame();
