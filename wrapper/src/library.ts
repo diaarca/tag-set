@@ -24,7 +24,7 @@ interface StoredTag {
 interface Assignment {
   songId: number;
   tagId: number;
-  origin: 'manual' | 'artist';
+  origin: 'manual' | 'artist' | 'excluded';
 }
 export interface LibraryData {
   version: 1;
@@ -125,7 +125,7 @@ export class LibraryStore {
       if (
         !songIDs.has(songId) ||
         !tagIDs.has(tagId) ||
-        !['manual', 'artist'].includes(String(row.origin))
+        !['manual', 'artist', 'excluded'].includes(String(row.origin))
       )
         throw new AppError(400, 'Invalid library assignment.');
       return { songId, tagId, origin: row.origin as Assignment['origin'] };
@@ -235,8 +235,13 @@ export class LibraryStore {
     );
     const parents = new Map<number, number[]>(),
       remaining = new Map(this.data.tags.map((tag) => [tag.id, 0]));
-    for (const row of this.data.assignments)
-      members.get(row.tagId)!.add(row.songId);
+    const excluded = new Map<number, Set<number>>();
+    for (const row of this.data.assignments) {
+      if (row.origin === 'excluded') {
+        if (!excluded.has(row.tagId)) excluded.set(row.tagId, new Set());
+        excluded.get(row.tagId)!.add(row.songId);
+      } else members.get(row.tagId)!.add(row.songId);
+    }
     for (const edge of this.data.edges) {
       const values = parents.get(edge.childId) ?? [];
       values.push(edge.parentId);
@@ -248,6 +253,9 @@ export class LibraryStore {
       .map(([id]) => id);
     while (pending.length) {
       const child = pending.pop()!;
+      // Apply exclusions before propagating this tag's effective membership.
+      for (const song of excluded.get(child) ?? [])
+        members.get(child)!.delete(song);
       for (const parent of parents.get(child) ?? []) {
         for (const song of members.get(child)!) members.get(parent)!.add(song);
         const count = remaining.get(parent)! - 1;
@@ -303,13 +311,19 @@ export class LibraryStore {
     const assigned = this.data.assignments.filter(
       (row) => row.songId === songId,
     );
-    for (const row of assigned) member(row.tagId)[row.origin] = true;
+    for (const row of assigned)
+      if (row.origin !== 'excluded') member(row.tagId)[row.origin] = true;
     const members = this.members();
     for (const edge of this.data.edges) {
       if (members.get(edge.childId)!.has(songId))
         member(edge.parentId).inheritedVia.push(edge.childId);
     }
-    return { ...song, memberships: [...memberships.values()] };
+    return {
+      ...song,
+      memberships: [...memberships.values()].filter((member) =>
+        members.get(member.tagId)!.has(songId),
+      ),
+    };
   }
   private takeID(kind: 'nextSongId' | 'nextTagId') {
     const value = this.data[kind];
@@ -410,12 +424,50 @@ export class LibraryStore {
       (row) => row.songId !== songId,
     );
   }
+  editSongs(value: unknown) {
+    const input = object(value);
+    if (
+      !Array.isArray(input.songIds) ||
+      !input.songIds.length ||
+      input.songIds.length > 50_000
+    )
+      throw new AppError(400, 'Select between 1 and 50,000 songs.');
+    const songIds = new Set(input.songIds.map(id));
+    const existing = new Set(this.data.songs.map((song) => song.id));
+    if ([...songIds].some((id) => !existing.has(id)))
+      throw new AppError(404, 'Song not found.');
+    if (input.action === 'delete') {
+      this.data.songs = this.data.songs.filter((song) => !songIds.has(song.id));
+      this.data.assignments = this.data.assignments.filter(
+        (row) => !songIds.has(row.songId),
+      );
+      return;
+    }
+    if (!['add-tag', 'remove-tag'].includes(String(input.action)))
+      throw new AppError(400, 'Invalid bulk song action.');
+    const tagId = id(input.tagId);
+    this.tag(tagId);
+    this.data.assignments = this.data.assignments.filter(
+      (row) =>
+        !songIds.has(row.songId) ||
+        row.tagId !== tagId ||
+        row.origin === 'artist',
+    );
+    for (const songId of songIds)
+      this.data.assignments.push({
+        songId,
+        tagId,
+        origin: input.action === 'add-tag' ? 'manual' : 'excluded',
+      });
+  }
   assign(songId: number, tagId: number, add: boolean) {
     this.song(songId);
     this.tag(tagId);
     this.data.assignments = this.data.assignments.filter(
       (row) =>
-        row.songId !== songId || row.tagId !== tagId || row.origin !== 'manual',
+        row.songId !== songId ||
+        row.tagId !== tagId ||
+        (row.origin !== 'manual' && !(add && row.origin === 'excluded')),
     );
     if (add) this.data.assignments.push({ songId, tagId, origin: 'manual' });
   }
@@ -476,7 +528,7 @@ export class LibraryStore {
     for (const row of incoming.assignments) {
       const songId = songs.get(row.songId)!,
         tagId = tags.get(row.tagId)!;
-      if (row.origin === 'artist' && existing.has(songId)) continue;
+      if (row.origin !== 'manual' && existing.has(songId)) continue;
       if (
         !this.data.assignments.some(
           (other) =>

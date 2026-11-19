@@ -7,6 +7,7 @@ import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
 import { ImportSongs } from './ImportSongs';
 import { Settings } from './Settings';
+import { SongSelection } from './SongSelection';
 import { isPhone } from './host';
 
 type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
@@ -20,6 +21,7 @@ export function App() {
   const [selected, setSelected] = useState<number | null>(null);
   const [tagSearch, setTagSearch] = useState('');
   const [songSearch, setSongSearch] = useState('');
+  const [selectedSongs, setSelectedSongs] = useState<number[]>([]);
   const [editor, setEditor] = useState<Editor>();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryVersion, setLibraryVersion] = useState(0);
@@ -68,6 +70,8 @@ export function App() {
         if (cancelled) return;
         setLibrary(library);
         setSongs(songs);
+        const songIds = new Set(songs.map((song) => song.id));
+        setSelectedSongs((ids) => ids.filter((id) => songIds.has(id)));
         setError('');
         setLoading(false);
       })
@@ -85,6 +89,7 @@ export function App() {
   const chooseTag = (id: number | null) => {
     setSelected(id);
     setSongSearch('');
+    setSelectedSongs([]);
   };
   const filteredTags = library.tags.filter(
     (tag) =>
@@ -109,6 +114,11 @@ export function App() {
       .toLowerCase()
       .includes(songSearch.toLowerCase()),
   );
+  const selectedSongIds = new Set(selectedSongs);
+  const toggleSong = (id: number) =>
+    setSelectedSongs((ids) =>
+      ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],
+    );
   const children = library.tags.filter((item) =>
     library.edges.some(
       (edge) => edge.parentId === selected && edge.childId === item.id,
@@ -383,9 +393,22 @@ export function App() {
             aria-label={t('Search songs')}
             placeholder={t('Search this collection…')}
             value={songSearch}
-            onChange={(event) => setSongSearch(event.target.value)}
+            onChange={(event) => {
+              setSongSearch(event.target.value);
+              setSelectedSongs([]);
+            }}
           />
         </div>
+        {selectedSongs.length > 0 && (
+          <SongSelection
+            songIds={selectedSongs}
+            library={library}
+            tag={tag}
+            onClear={() => setSelectedSongs([])}
+            onChanged={refresh}
+            onDeleted={(ids) => ids.forEach((id) => player.current?.remove(id))}
+          />
+        )}
         {error && (
           <div className="notice error" role="alert">
             {t(error)} <button onClick={refresh}>{t('Try again')}</button>
@@ -399,15 +422,53 @@ export function App() {
         ) : visibleSongs.length > 0 ? (
           <div className="song-table" role="table" aria-label={t('Songs')}>
             <div className="song-table-head" role="row">
+              <span role="columnheader">
+                <input
+                  type="checkbox"
+                  aria-label={t('Select all visible songs')}
+                  checked={visibleSongs.every((song) =>
+                    selectedSongIds.has(song.id),
+                  )}
+                  ref={(input) => {
+                    if (input)
+                      input.indeterminate =
+                        selectedSongs.length > 0 &&
+                        !visibleSongs.every((song) =>
+                          selectedSongIds.has(song.id),
+                        );
+                  }}
+                  onChange={(event) =>
+                    setSelectedSongs(
+                      event.target.checked
+                        ? visibleSongs.map((song) => song.id)
+                        : [],
+                    )
+                  }
+                />
+              </span>
               <span role="columnheader">#</span>
               <span role="columnheader">{t('TITLE / ARTIST')}</span>
-              <span role="columnheader">{t('SOURCE')}</span>
+              <span role="columnheader" className="source-label">
+                {t('SOURCE')}
+              </span>
               <span role="columnheader" className="sr-only">
                 {t('Actions')}
               </span>
             </div>
             {visibleSongs.map((song, index) => (
-              <div className="song-row" role="row" key={song.id}>
+              <div
+                className={`song-row${selectedSongIds.has(song.id) ? ' song-selected' : ''}`}
+                role="row"
+                key={song.id}
+              >
+                <div role="cell">
+                  <input
+                    type="checkbox"
+                    aria-label={t('Select {0}', song.title)}
+                    checked={selectedSongIds.has(song.id)}
+                    onChange={() => toggleSong(song.id)}
+                  />
+                </div>
                 <div role="cell">
                   <button
                     className="row-play"

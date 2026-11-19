@@ -143,6 +143,8 @@ export class LibraryApi {
     method: string,
     body: unknown,
   ) {
+    if (method === 'POST' && path === '/songs/batch')
+      return store.editSongs(body);
     if (method === 'POST' && path === '/songs/import') {
       const video = videoId(object(body).url);
       const previous = store.findByVideoId(video);

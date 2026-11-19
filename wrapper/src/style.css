@@ -407,10 +407,30 @@ h1 {
   padding: 9px 12px;
   font-size: 10px;
 }
+.song-selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.song-selection strong {
+  color: var(--accent);
+}
+.song-row.song-selected {
+  background: #b9adff18;
+}
+.song-table input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 .song-table-head,
 .song-row {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 90px 32px;
+  grid-template-columns: 24px 38px minmax(0, 1fr) 90px 32px;
   gap: 12px;
   align-items: center;
 }
@@ -980,11 +1000,8 @@ textarea {
   }
   .song-table-head,
   .song-row {
-    grid-template-columns: 28px minmax(0, 1fr) 32px;
+    grid-template-columns: 24px 28px minmax(0, 1fr) 32px;
     gap: 7px;
-  }
-  .song-table-head > span:nth-child(3) {
-    display: none;
   }
   .songs-toolbar {
     flex-wrap: wrap;

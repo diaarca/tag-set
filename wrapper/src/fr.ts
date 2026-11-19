@@ -1,4 +1,24 @@
 export const french: Record<string, string> = {
+  '{0} selected': '{0} sélectionnés',
+  'Select {0}': 'Sélectionner {0}',
+  'Select all visible songs': 'Sélectionner tous les morceaux visibles',
+  'Edit tags': 'Modifier les tags',
+  'Remove current tag': 'Retirer le tag actuel',
+  'Remove from library': 'Supprimer de la bibliothèque',
+  'Clear selection': 'Effacer la sélection',
+  'Tag to remove': 'Tag à retirer',
+  'Choose a tag': 'Choisir un tag',
+  'Remove tag': 'Retirer le tag',
+  'Confirm removal': 'Confirmer la suppression',
+  'Remove “{0}” from the selected songs?':
+    'Retirer « {0} » des morceaux sélectionnés ?',
+  'Permanently delete the selected songs and their assignments from this library? Tags and YouTube videos remain.':
+    'Supprimer définitivement les morceaux sélectionnés et leurs associations de cette bibliothèque ? Les tags et les vidéos YouTube sont conservés.',
+  'Removal excludes these songs from the tag, including inherited and artist membership. Other songs and artist credits stay unchanged. Add the tag again to restore membership.':
+    'Le retrait exclut ces morceaux du tag, y compris des appartenances héritées et des tags d’artiste. Les autres morceaux et les crédits des artistes sont conservés. Ajoutez à nouveau le tag pour rétablir l’appartenance.',
+  'Select between 1 and 50,000 songs.':
+    'Sélectionnez entre 1 et 50 000 morceaux.',
+  'Invalid bulk song action.': 'Action groupée invalide.',
   'Sleep timer': 'Minuteur de veille',
   Off: 'Désactivé',
   'Pause in {0}': 'Pause dans {0}',

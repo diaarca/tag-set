@@ -44,6 +44,62 @@ const offlineCatalog = new MusicCatalog(async () => {
   throw new Error('Network unavailable');
 });
 
+test('bulk edits persist once, validate every song, and preserve the library on write failure', async () => {
+  const original = new LibraryStore();
+  const first = original.saveSong(song(1));
+  const second = original.saveSong(song(2));
+  const tagId = original.createTag({ name: 'Focus' });
+  const disk = memoryHost(JSON.stringify(original.snapshot()));
+  const client = new LibraryApi(disk.host, offlineCatalog);
+  const songIds = [first, second, first];
+  await client.request('/songs/batch', 'POST', {
+    songIds,
+    action: 'add-tag',
+    tagId,
+  });
+  assert.equal(disk.writes, 1);
+  assert.equal(
+    new LibraryStore(JSON.parse(disk.value!)).songs(tagId).length,
+    2,
+  );
+  const before = disk.value;
+  for (const body of [
+    { songIds: [first, 999], action: 'delete' },
+    { songIds: [], action: 'delete' },
+    { songIds: [first], action: 'other' },
+    { songIds: [first], action: 'remove-tag', tagId: 999 },
+    { songIds: [false], action: 'delete' },
+  ]) {
+    await assert.rejects(client.request('/songs/batch', 'POST', body));
+    assert.equal(disk.value, before);
+    assert.equal(disk.writes, 1);
+  }
+  disk.fail = true;
+  await assert.rejects(
+    client.request('/songs/batch', 'POST', { songIds, action: 'delete' }),
+    /Disk full/,
+  );
+  assert.equal(disk.value, before);
+  const restarted = new LibraryApi(disk.host, offlineCatalog);
+  disk.fail = false;
+  await restarted.request('/songs/batch', 'POST', {
+    songIds,
+    action: 'remove-tag',
+    tagId,
+  });
+  const removed = new LibraryStore(JSON.parse(disk.value!));
+  assert.equal(removed.songs(tagId).length, 0);
+  assert.equal(removed.songs().length, 2);
+  await restarted.request('/songs/batch', 'POST', {
+    songIds,
+    action: 'delete',
+  });
+  const deleted = new LibraryStore(JSON.parse(disk.value!));
+  assert.equal(deleted.songs().length, 0);
+  assert.equal(deleted.snapshot().assignments.length, 0);
+  assert.equal(deleted.tags().length, 2);
+});
+
 test('library API serializes writes, persists a restart, and keeps saved data on failed writes', async () => {
   const disk = memoryHost(),
     client = new LibraryApi(disk.host, offlineCatalog);

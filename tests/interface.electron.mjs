@@ -228,6 +228,121 @@ app.whenReady().then(async () => {
     }))`);
     await window.loadFile(resolve('wrapper/bundle/index.html'));
     await waitFor("document.querySelectorAll('.song-row').length === 3");
+    const beforeSelection = saved;
+    await evaluate(`document.querySelector('[aria-label="Select Song 1"]').click();
+      document.querySelector('[aria-label="Select Song 2"]').click();`);
+    await waitFor(
+      "document.querySelector('.song-selection strong')?.textContent === '2 selected'",
+    );
+    assert.equal(
+      await evaluate(
+        'document.querySelector(\'[aria-label="Select all visible songs"]\').indeterminate',
+      ),
+      true,
+    );
+    await evaluate("document.querySelector('.song-selection button').click()");
+    await waitFor('!!document.querySelector(\'[aria-label="Tag to assign"]\')');
+    await typeInto('Tag to assign', 'Batch');
+    await press('Enter');
+    await waitFor("!document.querySelector('.song-selection')");
+    const batchTag = JSON.parse(saved).tags.find(
+      (tag) => tag.name === 'Batch',
+    ).id;
+    assert.equal(
+      JSON.parse(saved).assignments.filter((row) => row.tagId === batchTag)
+        .length,
+      2,
+    );
+    await evaluate(
+      "Array.from(document.querySelectorAll('.tag-navigation .nav-name')).find(item => item.textContent === 'Batch').closest('button').click()",
+    );
+    await waitFor("document.querySelectorAll('.song-row').length === 2");
+    await evaluate(
+      'document.querySelector(\'[aria-label="Select all visible songs"]\').click(); document.querySelector(\'[aria-label="Select all visible songs"]\').focus()',
+    );
+    await press('Backspace');
+    await waitFor(
+      "document.querySelector('dialog[open]')?.textContent.includes('Remove “Batch”')",
+    );
+    await evaluate("document.querySelector('dialog .danger').click()");
+    await waitFor(
+      "!document.querySelector('.song-row') && !document.querySelector('dialog[open]')",
+    );
+    assert.equal(JSON.parse(saved).songs.length, 3);
+    await evaluate(
+      "Array.from(document.querySelectorAll('.tag-navigation .nav-name')).find(item => item.textContent === 'Artist').closest('button').click()",
+    );
+    await waitFor("document.querySelectorAll('.song-row').length === 3");
+    await evaluate(
+      'document.querySelector(\'[aria-label="Select Song 1"]\').click(); document.querySelector(\'[aria-label="Select Song 1"]\').focus()',
+    );
+    await press('Delete');
+    await waitFor("!!document.querySelector('dialog .danger')");
+    await evaluate("document.querySelector('dialog .danger').click()");
+    await waitFor(
+      "document.querySelectorAll('.song-row').length === 2 && !document.querySelector('dialog[open]')",
+    );
+    assert.deepEqual(JSON.parse(saved).songs[0].artists, ['Artist']);
+    await evaluate(
+      'document.querySelector(\'[aria-label="Select all visible songs"]\').click()',
+    );
+    await waitFor("!!document.querySelector('.song-selection')");
+    await evaluate("document.querySelector('.song-selection button').click()");
+    await waitFor('!!document.querySelector(\'[aria-label="Tag to remove"]\')');
+    await evaluate(`(() => {
+      const select = document.querySelector('[aria-label="Tag to remove"]');
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, '1');
+      select.dispatchEvent(new Event('change', {bubbles: true}));
+    })()`);
+    await waitFor("!document.querySelector('dialog select + button').disabled");
+    await evaluate("document.querySelector('dialog select + button').click()");
+    await waitFor(
+      "!document.querySelector('.song-row') && !document.querySelector('dialog[open]')",
+    );
+    assert.equal(
+      JSON.parse(saved).assignments.filter(
+        (row) => row.tagId === 1 && row.origin === 'excluded',
+      ).length,
+      3,
+    );
+    await evaluate("document.querySelector('.all-songs').click()");
+    await waitFor("document.querySelectorAll('.song-row').length === 3");
+    await evaluate(
+      'document.querySelector(\'[aria-label="Select Song 1"]\').click(); document.querySelector(\'[aria-label="Search songs"]\').focus()',
+    );
+    await press('Backspace');
+    assert.equal(
+      await evaluate("!!document.querySelector('dialog[open]')"),
+      false,
+    );
+    await evaluate(
+      "document.querySelector('.primary.play-collection').click()",
+    );
+    await waitFor("document.querySelectorAll('.queue-list li').length === 2");
+    await typeInto('Search songs', 'Song 2');
+    await waitFor(
+      "document.querySelectorAll('.song-row').length === 1 && !document.querySelector('.song-selection')",
+    );
+    await evaluate(
+      'document.querySelector(\'[aria-label="Select all visible songs"]\').click(); document.querySelector(\'[aria-label="Select all visible songs"]\').focus()',
+    );
+    await press('Delete');
+    await waitFor("!!document.querySelector('dialog .danger')");
+    assert.equal(JSON.parse(saved).songs.length, 3); // Confirmation precedes deletion.
+    await evaluate("document.querySelector('dialog .danger').click()");
+    await waitFor(
+      "!document.querySelector('dialog[open]') && !document.querySelector('.song-row')",
+    );
+    assert.deepEqual(
+      JSON.parse(saved).songs.map((song) => song.id),
+      [1, 3],
+    );
+    await waitFor(
+      "document.querySelectorAll('.queue-list li').length === 1 && document.querySelector('.queue-list strong')?.textContent === 'Song 3'",
+    );
+    saved = beforeSelection;
+    await window.loadFile(resolve('wrapper/bundle/index.html'));
+    await waitFor("document.querySelectorAll('.song-row').length === 3");
     await evaluate("document.querySelector('.settings-button').click()");
     await waitFor(
       "!!document.querySelector('dialog input[type=checkbox]:not(:disabled)')",
@@ -795,6 +910,27 @@ app.whenReady().then(async () => {
         ),
       );
       await evaluate(
+        'document.querySelector(\'[aria-label="Select all visible songs"]\').click()',
+      );
+      await waitFor(
+        "document.querySelector('.song-selection strong')?.textContent === '3 selected'",
+      );
+      await evaluate(
+        "document.querySelector('.song-selection button').click()",
+      );
+      await waitFor("!!document.querySelector('dialog[open]')");
+      assert.ok(
+        await evaluate(
+          "document.querySelector('dialog').getBoundingClientRect().right <= innerWidth && document.querySelector('.main-panel').scrollWidth <= document.querySelector('.main-panel').clientWidth",
+        ),
+      );
+      await evaluate(
+        'document.querySelector(\'[aria-label="Close dialog"]\').click()',
+      );
+      await evaluate(
+        "Array.from(document.querySelectorAll('.song-selection button')).find(button => button.textContent === 'Clear selection').click()",
+      );
+      await evaluate(
         "document.querySelector('.primary.play-collection').click()",
       );
       await waitFor(
@@ -1041,7 +1177,7 @@ app.whenReady().then(async () => {
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, library reset confirmation/cancellation/persistence, phone player controls/swipes/orientation, native queue synchronization, and responsive layout.',
+      'Passed: bulk selection/tag edits/exclusions/deletion/queue cleanup, searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, library reset confirmation/cancellation/persistence, phone player controls/swipes/orientation, native queue synchronization, and responsive layout.',
     );
     app.quit();
   } catch (error) {
