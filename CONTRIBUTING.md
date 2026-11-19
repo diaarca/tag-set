@@ -15,7 +15,7 @@ npm run test:desktop  # Requires a graphical desktop session.
 
 Nix provides Node.js, Electron, and XcodeGen on macOS. `npm start` launches the desktop app. See [README.md](README.md) for packaging and iPhone installation. The npm package is private to prevent accidental registry publication; the source is MIT licensed.
 
-CI uses the smaller `nix develop .#ci` shell with Node.js. One Linux job checks source, unit tests, and the interface build; desktop tests and native packaging stay manual.
+CI uses the smaller `nix develop .#ci` shell with Node.js. One Linux job checks source, unit tests, and the interface build. Desktop tests stay manual; the separate, manually triggered **Release** workflow packages all supported targets and creates a draft. See the README for the release process.
 
 On macOS, check native loudness metadata handling with Xcode's Swift compiler:
 
