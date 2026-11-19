@@ -35,6 +35,12 @@ Direnv loads the same environment automatically. Nix provides Node.js, Electron,
 
 Packages are written to `dist/releases` and include their runtime. Windows/Linux packages can be built on macOS or Linux. The DMG requires Apple Silicon macOS; Intel Mac build hosts are unsupported by the pinned Nixpkgs. Installed apps need no Nix or Node.js. Linux also requires desktop libraries and Chromium sandbox support.
 
+## Releases
+
+Published packages will be available on [GitHub Releases](https://github.com/diaarca/tag-set/releases): macOS Apple Silicon DMG, Windows x64 installer, Linux x64/ARM64 archives, and an unsigned iOS Xcode archive ZIP. The iOS archive is not directly installable; use the source and Xcode instructions below to sign and install. Each release includes `SHA256SUMS.txt` for verifying downloads. Android and Intel Mac packages are not available.
+
+To prepare a release, merge the desired changes and set `package.json` and its lockfile to the release version. Tag that commit as `vVERSION` and push the tag, then open **Actions → Release → Run workflow** on `main` and enter the existing tag. The tag must match the package version, for example `v0.1.0`. The workflow checks source, builds all five packages, and creates a **draft** only after both build jobs succeed. Review its notes and packages before publishing manually. An existing release is never overwritten; if a failed upload leaves a partial draft, delete that draft before retrying. Release builds do not run on ordinary pushes or pull requests.
+
 ## iPhone and iPad
 
 Requires full Xcode and iOS 17+. From the repository root:
