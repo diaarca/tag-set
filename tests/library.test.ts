@@ -8,6 +8,61 @@ const songInput = (index: number, artists = ['Daft Punk']) => ({
   artists,
 });
 
+test('bulk tag removal excludes inherited and artist membership without changing other songs or credits', () => {
+  const store = new LibraryStore();
+  const first = store.saveSong(songInput(1));
+  const second = store.saveSong(songInput(2));
+  const artist = store.tags()[0].id;
+  const parent = store.createTag({ name: 'Parent' });
+  const root = store.createTag({ name: 'Root' });
+  store.relate(parent, artist, true);
+  store.relate(root, parent, true);
+  store.relate(root, artist, true);
+  store.assign(first, parent, true);
+  store.editSongs({ songIds: [first], action: 'remove-tag', tagId: parent });
+  assert.deepEqual(
+    store.songs(parent).map((song) => song.id),
+    [second],
+  );
+  assert.equal(store.songs(root).length, 2); // The artist offers a separate path.
+  assert.ok(
+    !store.details(first).memberships.some((row) => row.tagId === parent),
+  );
+  store.editSongs({ songIds: [first], action: 'remove-tag', tagId: artist });
+  assert.deepEqual(
+    store.songs(artist).map((song) => song.id),
+    [second],
+  );
+  assert.deepEqual(
+    store.songs(root).map((song) => song.id),
+    [second],
+  );
+  assert.deepEqual(store.song(first).artists, ['Daft Punk']);
+  assert.equal(store.songs().length, 2);
+  assert.equal(store.library().edges.length, 3);
+
+  const restored = new LibraryStore(store.exportLibrary());
+  assert.equal(restored.songs(root).length, 1);
+  const imported = new LibraryStore();
+  imported.createTag({ name: 'Unrelated' }); // IDs are remapped on import.
+  imported.merge(restored.exportLibrary());
+  const importedParent = imported
+    .tags()
+    .find((tag) => tag.name === 'Parent')!.id;
+  assert.equal(imported.songs(importedParent).length, 1);
+  restored.assign(first, artist, true); // Single-song add also clears an exclusion.
+  assert.equal(restored.songs(artist).length, 2);
+  assert.equal(restored.songs(parent).length, 1);
+  restored.editSongs({ songIds: [first], action: 'add-tag', tagId: parent });
+  assert.equal(restored.songs(parent).length, 2);
+  store.merge(restored.exportLibrary());
+  assert.equal(store.songs(parent).length, 1); // Pull preserves local exclusions.
+  restored.deleteTag(parent);
+  assert.ok(
+    !restored.snapshot().assignments.some((row) => row.tagId === parent),
+  );
+});
+
 test('nested and diamond-shaped inheritance deduplicates songs and preserves other sources', () => {
   const store = new LibraryStore();
   const first = store.saveSong(songInput(1));

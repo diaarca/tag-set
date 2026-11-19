@@ -4,6 +4,8 @@ A local music library with tags, inherited playlists, and YouTube Music playback
 
 Songs inherit artist tags. Parent tags include their descendants' songs, without duplicates or cycles. Tags support pins, renaming, and deletion. Search/import songs and playlists, play collections in order or shuffled, and transfer libraries through JSON import/export. Repeat-all is enabled by default; Space toggles playback while the app is focused. The player’s **Sleep timer** pauses playback after a chosen duration, including in the background on iOS. Change the duration to restart it or choose **Cancel timer**. Timers count elapsed time even while paused and reset when the app quits.
 
+Use the song checkboxes to select songs, then **Edit tags** to add or remove a tag in bulk. The header checkbox selects all visible search results; changing the search or collection clears selection. Delete/Backspace asks to remove the current tag, or permanently delete selected songs from **All songs**. Removing a tag excludes those songs even from inherited or artist membership, without changing artist credits or shared relationships. Exclusions also apply when propagating to parent tags; another membership path can still include the song. Add the tag again to restore membership. Exclusions are saved in library exports and sharing; older app versions cannot read libraries containing them.
+
 On phones, a fixed bottom bar shows the song and playback controls. Tap its cover/title to open Now Playing; use **Back to library** or swipe down from the top of the panel to return. Desktop and iPad layouts keep the existing player panel. This also prepares the interface for Android phones; Android packaging is not yet available.
 
 ## Run

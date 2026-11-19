@@ -4,7 +4,7 @@ import type { Library, SongDetails, Tag } from '../../shared/types.js';
 import { api } from './api';
 import { AppError } from '../../shared/errors.js';
 
-function useAction() {
+export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const run = async (action: () => Promise<void>) => {
@@ -23,7 +23,7 @@ function useAction() {
   return { busy, error, run };
 }
 
-function TagPicker({
+export function TagPicker({
   label,
   tags,
   available,
