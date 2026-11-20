@@ -551,7 +551,10 @@ export function App() {
         </footer>
       </main>
 
-      <Player ref={player} />
+      <Player
+        ref={player}
+        onManageSong={(id) => setEditor({ kind: 'song', id })}
+      />
       {settingsOpen && (
         <Modal title={t('Settings')} onClose={() => setSettingsOpen(false)}>
           <Settings
