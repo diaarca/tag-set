@@ -7,12 +7,7 @@ import {
   Menu,
   safeStorage,
 } from 'electron';
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFile, rm } from 'node:fs/promises';
