@@ -214,10 +214,19 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
     NSError(domain: "TagSet", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
   }
   private func defaultLibraryURL() throws -> URL {
-    try FileManager.default.url(
+    let applicationSupport = try FileManager.default.url(
       for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
     )
-    .appendingPathComponent("SetwiseWrapper/library.json")
+    let legacyFolder = applicationSupport.appendingPathComponent("SetwiseWrapper")
+    let folder = applicationSupport.appendingPathComponent("TagSet")
+    let fileManager = FileManager.default
+    if !fileManager.fileExists(atPath: folder.path),
+      fileManager.fileExists(atPath: legacyFolder.path)
+    {
+      try fileManager.moveItem(at: legacyFolder, to: folder)
+    }
+    try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+    return folder.appendingPathComponent("library.json")
   }
   private func libraryURL() throws -> URL {
     if !locationLoaded {
@@ -408,6 +417,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
   private func tokenQuery() -> [String: Any] {
     [
       kSecClass as String: kSecClassGenericPassword,
+      // Keep the service identifier so existing saved GitHub tokens remain addressable.
       kSecAttrService as String: "dev.dylan.Setwise.Wrapper.github",
       kSecAttrAccount as String: "token",
     ]

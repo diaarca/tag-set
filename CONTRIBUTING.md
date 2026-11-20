@@ -25,7 +25,7 @@ env -u SDKROOT DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin
 .build/native-loudness-tests
 ```
 
-The shared React interface, library engine, and catalog parser live in `wrapper/src`; `wrapper/desktop` and `apple/Wrapper` provide the native hosts. Preserve the JSON library format, inherited tag behavior, and native bridge boundaries. Legacy storage and encryption identifiers intentionally survive the TagSet rename.
+The shared React interface, library engine, and catalog parser live in `wrapper/src`; `wrapper/desktop` and `apple/Wrapper` provide the native hosts. Preserve the JSON library format, inherited tag behavior, and native bridge boundaries. Keep legacy bundle, installer, encryption, playback-session, and Keychain identifiers when changing them would strand existing user data or sign-ins.
 
 ## Changes and pull requests
 
