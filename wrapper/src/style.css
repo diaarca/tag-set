@@ -581,12 +581,23 @@ h1 {
   color: #af96ce;
   font-size: 8px;
 }
+.now-playing-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .now-playing h2 {
+  min-width: 0;
+  flex: 1;
   margin: 10px 0 8px;
   font-size: 22px;
   line-height: 1.4;
   letter-spacing: -0.7px;
   overflow-wrap: anywhere;
+}
+.now-playing-manage {
+  flex: none;
+  margin-top: 4px;
 }
 .now-playing p {
   color: #bca6d3;

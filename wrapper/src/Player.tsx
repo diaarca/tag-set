@@ -57,7 +57,10 @@ function playerReducer(
     : queueReducer(state, action);
 }
 
-export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
+export const Player = forwardRef<
+  PlayerHandle,
+  { onManageSong?: (id: number) => void }
+>(function Player({ onManageSong }, ref) {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
   useEffect(() => {
@@ -559,7 +562,18 @@ export const Player = forwardRef<PlayerHandle>(function Player(_props, ref) {
               ? t('TRACK {0} OF {1}', queue.index + 1, queue.songs.length)
               : t('YOUR COLLECTION, YOUR CONNECTIONS')}
           </span>
-          <h2>{song?.title ?? t('Choose a song or tag.')}</h2>
+          <div className="now-playing-title-row">
+            <h2>{song?.title ?? t('Choose a song or tag.')}</h2>
+            {song && onManageSong && (
+              <button
+                className="icon-button now-playing-manage"
+                aria-label={t('Manage song')}
+                onClick={() => onManageSong(song.id)}
+              >
+                ⋮
+              </button>
+            )}
+          </div>
           <p>
             {song?.artists.join(' · ') ??
               t('Choose a song or let a tag set the mood.')}
