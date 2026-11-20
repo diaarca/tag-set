@@ -74,9 +74,9 @@ Choose the folder separately on each device. Wait for the provider to finish syn
 
 **Reset library** asks for confirmation, then removes all songs and tags from the selected file and stops playback. Export a backup first if needed. Cloud folders sync this reset; GitHub changes only when you push. Settings and credentials are kept.
 
-For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. Use **Pull from GitHub** before **Push to GitHub**, including before the first push to an empty library repository. A private repository keeps your library private. No Git installation is needed.
+For GitHub sharing, create an initialized repository and a fine-grained personal access token with **Contents: read and write** for that repository. Enter `owner/repo`, its branch, and the token, then save the connection. A private repository keeps your library private. No Git installation is needed.
 
-Pull merges additions and preserves local edits; deletions do not propagate. Push writes `tagset-library.json` and rejects unseen remote changes. Tokens are stored using the desktop system keychain or iOS Keychain, separately from library exports; Linux requires an available system keyring. GitHub sharing is manual.
+**Pull from GitHub** merges additions and may restore locally deleted items. To publish local deletions, use **Push to GitHub** directly. Push writes the current library to `tagset-library.json`. If this session has no known version of the remote library, confirm replacement when prompted. GitHub rejects updates if the file changed since the version used for the push. Tokens are stored separately in the desktop system keychain or iOS Keychain. Linux requires an available system keyring.
 
 ## Data and limits
 

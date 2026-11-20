@@ -473,7 +473,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
     if status == 404 && allowMissing { return nil }
     if [409, 422].contains(status) {
       throw failure(
-        "GitHub rejected the update. Pull again before pushing; check branch permissions.")
+        "GitHub rejected the update. Check for remote changes or branch permissions before pushing again.")
     }
     guard (200...299).contains(status) else {
       throw failure(
@@ -519,7 +519,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
     let (path, _) = try githubConfig(value)
     guard let input = value as? [String: Any], let branch = input["branch"] as? String,
       input["sha"] is NSNull || validSHA(input["sha"]) != nil
-    else { throw failure("Pull before pushing.") }
+    else { throw failure("Missing or invalid GitHub library version.") }
     let data = try libraryData(input["data"])
     var body: [String: Any] = [
       "message": "Update TagSet library", "branch": branch, "content": data.base64EncodedString(),
@@ -528,7 +528,7 @@ private final class WrapperController: UIViewController, WKNavigationDelegate,
     let result = try await githubCall(
       "\(path)/contents/tagset-library.json", method: "PUT", body: body)
     guard let content = result?["content"] as? [String: Any], let sha = validSHA(content["sha"])
-    else { throw failure("GitHub did not confirm the library update. Pull before pushing again.") }
+    else { throw failure("GitHub did not confirm the library update. Check the remote library before trying again.") }
     return ["sha": sha]
   }
   private func catalog(_ value: Any?) async throws -> Any {
