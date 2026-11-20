@@ -38,7 +38,10 @@ test('GitHub sharing reads libraries and rejects a push when the remote revision
   const remote = await client.pull(config);
   assert.equal(remote.data, data);
   sha = 'b'.repeat(40);
-  await assert.rejects(client.push(config, data, remote.sha), /Pull again/);
+  await assert.rejects(
+    client.push(config, data, remote.sha),
+    /GitHub rejected the update/,
+  );
   assert.equal(written, undefined);
   const latest = await client.pull(config);
   assert.equal(

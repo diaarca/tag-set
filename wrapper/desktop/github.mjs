@@ -20,7 +20,7 @@ export function createGitHubClient(readToken, fetcher = fetch) {
     if (!response.ok) {
       if ([409, 422].includes(response.status))
         throw new Error(
-          'GitHub rejected the update. Pull again before pushing; check branch permissions.',
+          'GitHub rejected the update. Check for remote changes or branch permissions before pushing again.',
         );
       throw new Error(
         `GitHub request failed (${response.status}). Check the repository, branch, token, and its Contents permission.`,
@@ -71,7 +71,7 @@ export function createGitHubClient(readToken, fetcher = fetch) {
         sha !== null &&
         (typeof sha !== 'string' || !/^[a-f0-9]{40}$/.test(sha))
       )
-        throw new Error('Pull before pushing.');
+        throw new Error('Missing or invalid GitHub library version.');
       const result = await call(`${path}/contents/tagset-library.json`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -83,7 +83,7 @@ export function createGitHubClient(readToken, fetcher = fetch) {
       });
       if (!/^[a-f0-9]{40}$/.test(result?.content?.sha))
         throw new Error(
-          'GitHub did not confirm the library update. Pull before pushing again.',
+          'GitHub did not confirm the library update. Check the remote library before trying again.',
         );
       return { sha: result.content.sha };
     },

@@ -34,6 +34,7 @@ app.whenReady().then(async () => {
     let githubHasToken = false;
     let githubSha = 'a'.repeat(40);
     let pushedLibrary;
+    let githubRemoteData;
     let libraryPath = 'device/library.json';
     let folderChoice = null;
     let pendingFolder = null;
@@ -103,10 +104,11 @@ app.whenReady().then(async () => {
         githubHasToken = false;
         return null;
       }
-      if (operation === 'githubPull') return { data: saved, sha: githubSha };
+      if (operation === 'githubPull')
+        return { data: githubRemoteData ?? saved, sha: githubSha };
       if (operation === 'githubPush') {
         if (payload.sha !== githubSha)
-          throw new Error('Remote changed. Pull again before pushing.');
+          throw new Error('GitHub rejected the update.');
         pushedLibrary = JSON.parse(payload.data);
         githubSha = 'c'.repeat(40);
         return { sha: githubSha };
@@ -608,11 +610,6 @@ app.whenReady().then(async () => {
     await waitFor(
       "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub' && !button.disabled)",
     );
-    assert.ok(
-      await evaluate(
-        "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').disabled",
-      ),
-    );
     await evaluate(
       "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub').click()",
     );
@@ -624,22 +621,41 @@ app.whenReady().then(async () => {
       "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').click()",
     );
     await waitFor(
-      "document.querySelector('dialog [role=alert]')?.textContent.includes('Pull again')",
+      "document.querySelector('dialog [role=alert]')?.textContent.includes('GitHub rejected')",
     );
     assert.equal(pushedLibrary, undefined);
-    await evaluate(
-      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Pull from GitHub').click()",
-    );
-    await waitFor(
-      "!!Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub' && !button.disabled)",
-    );
-    await evaluate(
-      "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').click()",
-    );
+    const remote = JSON.parse(saved);
+    remote.songs.push({
+      id: remote.nextSongId++,
+      videoId: 'abcdefghijk',
+      title: 'Deleted song',
+      artists: [],
+    });
+    remote.tags.push({
+      id: remote.nextTagId++,
+      name: 'Deleted tag',
+      pinned: false,
+      artist: false,
+    });
+    githubRemoteData = JSON.stringify(remote);
+    const localBeforePush = saved;
+    const githubButton = (label) =>
+      `Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === ${JSON.stringify(label)})`;
+    const clickGitHub = (label) => evaluate(`${githubButton(label)}.click()`);
+    await clickGitHub('Push to GitHub');
+    await waitFor(`!!${githubButton('Replace GitHub library')}`);
+    await clickGitHub('Cancel');
+    assert.equal(pushedLibrary, undefined);
+    assert.equal(saved, localBeforePush);
+    await clickGitHub('Push to GitHub');
+    await waitFor(`!!${githubButton('Replace GitHub library')}`);
+    await clickGitHub('Replace GitHub library');
     await waitFor(
       "document.querySelector('dialog [role=status]')?.textContent.includes('pushed')",
     );
     assert.equal(pushedLibrary.songs.length, 3);
+    assert.equal(saved, localBeforePush);
+    assert.ok(!pushedLibrary.tags.some((tag) => tag.name === 'Deleted tag'));
     assert.equal(JSON.parse(preferences).githubRepository, 'example/library');
     assert.ok(!preferences.includes('unit_test'));
     await evaluate(
@@ -813,11 +829,10 @@ app.whenReady().then(async () => {
         .slice(beforeLocationCommands)
         .some((command) => command.type === 'pause'),
     );
-    assert.ok(
-      await evaluate(
-        "Array.from(document.querySelectorAll('dialog button')).find(button => button.textContent === 'Push to GitHub').disabled",
-      ),
-    );
+    await waitFor(`${githubButton('Push to GitHub')}?.disabled === false`);
+    await clickGitHub('Push to GitHub');
+    await waitFor(`!!${githubButton('Replace GitHub library')}`);
+    await clickGitHub('Cancel');
     folderChoice = {
       token: 'invalid',
       path: 'cloud/invalid/library.json',

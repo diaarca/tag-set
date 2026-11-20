@@ -214,8 +214,11 @@ export const french: Record<string, string> = {
   'Public YouTube Music playlist URL':
     'URL d’une playlist YouTube Music publique',
   'Pull from GitHub': 'Récupérer depuis GitHub',
-  'Pull merges additions and keeps local edits. Deletions do not propagate. Push publishes your current library as tagset-library.json. Pull before pushing in each session; newer remote changes are rejected.':
-    'La récupération fusionne les ajouts et conserve les modifications locales. Les suppressions ne sont pas propagées. L’envoi publie votre bibliothèque dans tagset-library.json. Récupérez avant chaque première publication de session ; les modifications distantes non récupérées bloquent l’envoi.',
+  'Pull merges songs and tags into this device’s library and may restore deleted items. Push sends this device’s current library, including deletions.':
+    'La récupération fusionne les morceaux et les tags avec la bibliothèque de cet appareil et peut restaurer des éléments supprimés. L’envoi publie la bibliothèque actuelle de cet appareil, suppressions comprises.',
+  'Replace the GitHub library with this device’s library? Songs and tags found only on GitHub will be removed from the shared file.':
+    'Remplacer la bibliothèque GitHub par celle de cet appareil ? Les morceaux et tags présents uniquement sur GitHub seront retirés du fichier partagé.',
+  'Replace GitHub library': 'Remplacer la bibliothèque GitHub',
   'Push to GitHub': 'Envoyer vers GitHub',
   'Reduce loud tracks using YouTube loudness metadata. Quiet tracks are not amplified; tracks without metadata keep their usual volume.':
     'Réduit le volume des morceaux forts grâce aux métadonnées de YouTube. Les morceaux faibles ne sont pas amplifiés ; ceux sans métadonnées gardent leur volume habituel.',
@@ -332,8 +335,8 @@ export const french: Record<string, string> = {
   'Save a GitHub token first.': 'Enregistrez d’abord un jeton GitHub.',
   'Enter a repository as owner/repo and a valid branch.':
     'Saisissez un dépôt au format propriétaire/dépôt et une branche valide.',
-  'GitHub rejected the update. Pull again before pushing; check branch permissions.':
-    'GitHub a refusé la mise à jour. Récupérez à nouveau avant d’envoyer et vérifiez les permissions de la branche.',
+  'GitHub rejected the update. Check for remote changes or branch permissions before pushing again.':
+    'GitHub a refusé la mise à jour. Vérifiez les modifications distantes ou les permissions de la branche avant de réessayer.',
   'GitHub request failed ({0}). Check the repository, branch, token, and its Contents permission.':
     'La requête GitHub a échoué ({0}). Vérifiez le dépôt, la branche, le jeton et sa permission Contents.',
   'A system keychain is required to store the GitHub token.':
@@ -348,9 +351,10 @@ export const french: Record<string, string> = {
   'Invalid shared library file.': 'Fichier de bibliothèque partagée invalide.',
   'Invalid GitHub library response.':
     'Réponse de bibliothèque GitHub invalide.',
-  'Pull before pushing.': 'Récupérez avant d’envoyer.',
-  'GitHub did not confirm the library update. Pull before pushing again.':
-    'GitHub n’a pas confirmé la mise à jour. Récupérez avant d’envoyer à nouveau.',
+  'Missing or invalid GitHub library version.':
+    'Version de la bibliothèque GitHub manquante ou invalide.',
+  'GitHub did not confirm the library update. Check the remote library before trying again.':
+    'GitHub n’a pas confirmé la mise à jour. Vérifiez la bibliothèque distante avant de réessayer.',
   'This relationship would create a tag cycle.':
     'Ce lien créerait une boucle entre les tags.',
   'A tag with that name already exists.': 'Un tag portant ce nom existe déjà.',

@@ -14,6 +14,7 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [sha, setSha] = useState<string | null>();
+  const [replacementSha, setReplacementSha] = useState<string>();
   useEffect(() => {
     let cancelled = false;
     void request('hasGitHubToken')
@@ -52,6 +53,18 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
     repository.trim() !== config.repository ||
     branch.trim() !== config.branch ||
     !!token;
+  const disabled = busy || saving || changed || !hasToken || !config.repository;
+  const push = async (previous: string | null) => {
+    setReplacementSha(undefined);
+    setSha(undefined);
+    const result = (await request('githubPush', {
+      ...config,
+      sha: previous,
+      data: JSON.stringify(await api('/library/export')),
+    })) as { sha: string };
+    setSha(result.sha);
+    setNotice('Library pushed to GitHub.');
+  };
   return (
     <section className="editor-section">
       <h3>{t('GitHub library sharing')}</h3>
@@ -74,6 +87,7 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
               setHasToken(true);
             }
             setSha(undefined);
+            setReplacementSha(undefined);
             await save({
               ...preferences,
               githubRepository: next.repository,
@@ -129,6 +143,7 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
                   await request('removeGitHubToken');
                   setHasToken(false);
                   setSha(undefined);
+                  setReplacementSha(undefined);
                   setToken('');
                 })
               }
@@ -140,16 +155,15 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
       </form>
       <p className="field-note">
         {t(
-          'Pull merges additions and keeps local edits. Deletions do not propagate. Push publishes your current library as tagset-library.json. Pull before pushing in each session; newer remote changes are rejected.',
+          'Pull merges songs and tags into this device’s library and may restore deleted items. Push sends this device’s current library, including deletions.',
         )}
       </p>
       <div className="button-row">
         <button
-          disabled={
-            busy || saving || changed || !hasToken || !config.repository
-          }
+          disabled={disabled}
           onClick={() =>
             void run(async () => {
+              setReplacementSha(undefined);
               setSha(undefined);
               const remote = (await request('githubPull', config)) as {
                 data: string | null;
@@ -171,24 +185,44 @@ export function GitHubSharing({ onImported }: { onImported(): void }) {
           {t('Pull from GitHub')}
         </button>
         <button
-          disabled={busy || saving || changed || !hasToken || sha === undefined}
+          disabled={disabled || replacementSha !== undefined}
           onClick={() =>
             void run(async () => {
-              const previous = sha;
-              setSha(undefined);
-              const result = (await request('githubPush', {
-                ...config,
-                sha: previous,
-                data: JSON.stringify(await api('/library/export')),
-              })) as { sha: string };
-              setSha(result.sha);
-              setNotice('Library pushed to GitHub.');
+              if (sha !== undefined) {
+                await push(sha);
+                return;
+              }
+              const remote = (await request('githubPull', config)) as {
+                sha: string | null;
+              };
+              if (remote.sha === null) await push(null);
+              else setReplacementSha(remote.sha);
             })
           }
         >
           {t('Push to GitHub')}
         </button>
       </div>
+      {replacementSha !== undefined && (
+        <div className="notice" role="alert">
+          <p>
+            {t(
+              'Replace the GitHub library with this device’s library? Songs and tags found only on GitHub will be removed from the shared file.',
+            )}
+          </p>
+          <div className="button-row">
+            <button
+              disabled={disabled}
+              onClick={() => void run(() => push(replacementSha))}
+            >
+              {t('Replace GitHub library')}
+            </button>
+            <button onClick={() => setReplacementSha(undefined)}>
+              {t('Cancel')}
+            </button>
+          </div>
+        </div>
+      )}
       {busy && (
         <p role="status" className="field-note">
           {t('Working…')}
