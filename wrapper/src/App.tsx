@@ -198,6 +198,16 @@ export function App() {
             value={tagSearch}
             onChange={(event) => setTagSearch(event.target.value)}
           />
+          {tagSearch && (
+            <button
+              className="search-clear"
+              type="button"
+              aria-label={t('Clear search')}
+              onClick={() => setTagSearch('')}
+            >
+              ×
+            </button>
+          )}
         </label>
         <nav className="tag-navigation" aria-label={t('Tags')}>
           {tagGroups
@@ -388,16 +398,31 @@ export function App() {
           <h2>
             {selected === null ? t('Your songs') : t('Songs in this tag')}
           </h2>
-          <input
-            className="song-search"
-            aria-label={t('Search songs')}
-            placeholder={t('Search this collection…')}
-            value={songSearch}
-            onChange={(event) => {
-              setSongSearch(event.target.value);
-              setSelectedSongs([]);
-            }}
-          />
+          <div className="song-search-wrap">
+            <input
+              className="song-search"
+              aria-label={t('Search songs')}
+              placeholder={t('Search this collection…')}
+              value={songSearch}
+              onChange={(event) => {
+                setSongSearch(event.target.value);
+                setSelectedSongs([]);
+              }}
+            />
+            {songSearch && (
+              <button
+                className="search-clear"
+                type="button"
+                aria-label={t('Clear search')}
+                onClick={() => {
+                  setSongSearch('');
+                  setSelectedSongs([]);
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
         {selectedSongs.length > 0 && (
           <SongSelection

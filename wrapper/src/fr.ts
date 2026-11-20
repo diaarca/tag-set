@@ -157,6 +157,7 @@ export const french: Record<string, string> = {
   'Every song, a new connection.': 'Chaque morceau, un nouveau lien.',
   'Export library': 'Exporter la bibliothèque',
   'Find a tag': 'Rechercher un tag',
+  'Clear search': 'Effacer la recherche',
   'Forget token': 'Oublier le jeton',
   'GitHub branch': 'Branche GitHub',
   'GitHub library sharing': 'Partage de bibliothèque avec GitHub',
