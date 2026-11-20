@@ -12,8 +12,8 @@ export const french: Record<string, string> = {
   'Confirm removal': 'Confirmer la suppression',
   'Remove “{0}” from the selected songs?':
     'Retirer « {0} » des morceaux sélectionnés ?',
-  'Permanently delete the selected songs and their assignments from this library? Tags and YouTube videos remain.':
-    'Supprimer définitivement les morceaux sélectionnés et leurs associations de cette bibliothèque ? Les tags et les vidéos YouTube sont conservés.',
+  'Permanently delete the selected songs and their assignments from this library? Empty artist tags will also be removed.':
+    'Supprimer définitivement les morceaux sélectionnés et leurs associations de cette bibliothèque ? Les tags d’artistes vides seront également supprimés.',
   'Removal excludes these songs from the tag, including inherited and artist membership. Other songs and artist credits stay unchanged. Add the tag again to restore membership.':
     'Le retrait exclut ces morceaux du tag, y compris des appartenances héritées et des tags d’artiste. Les autres morceaux et les crédits des artistes sont conservés. Ajoutez à nouveau le tag pour rétablir l’appartenance.',
   'Select between 1 and 50,000 songs.':
@@ -225,8 +225,8 @@ export const french: Record<string, string> = {
   'Remove direct assignments here. Inherited membership follows the linked tag relationships.':
     'Retirez ici les attributions directes. L’héritage suit les liens entre les tags.',
   'Remove direct {0} tag': 'Retirer le tag direct {0}',
-  'Remove this song and its assignments from your library? Tags and the original YouTube video will remain.':
-    'Supprimer ce morceau et ses attributions de votre bibliothèque ? Les tags et la vidéo YouTube seront conservés.',
+  'Remove this song and its assignments from your library? Empty artist tags will also be removed.':
+    'Supprimer ce morceau et ses attributions de votre bibliothèque ? Les tags d’artistes vides seront également supprimés.',
   'Repeat: {0}': 'Répétition : {0}',
   Repository: 'Dépôt',
   'Retry song': 'Réessayer le morceau',

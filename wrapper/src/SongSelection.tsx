@@ -105,7 +105,7 @@ export function SongSelection({
                 {tag
                   ? t('Remove “{0}” from the selected songs?', tag.name)
                   : t(
-                      'Permanently delete the selected songs and their assignments from this library? Tags and YouTube videos remain.',
+                      'Permanently delete the selected songs and their assignments from this library? Empty artist tags will also be removed.',
                     )}
               </p>
               {tag && <p className="field-note">{explanation}</p>}

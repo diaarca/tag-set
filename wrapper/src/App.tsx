@@ -62,12 +62,27 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void Promise.all([
-      api<Library>('/library'),
-      api<Song[]>(selected === null ? '/songs' : `/songs?tagId=${selected}`),
-    ])
-      .then(([library, songs]) => {
+    void api<Library>('/library')
+      .then(async (library) => {
         if (cancelled) return;
+        const hasSelectedTag =
+          selected !== null && library.tags.some((tag) => tag.id === selected);
+        const songs = hasSelectedTag
+          ? await api<Song[]>(`/songs?tagId=${selected}`)
+          : library.songs;
+        if (cancelled) return;
+        if (selected !== null && !hasSelectedTag) {
+          setSelected(null);
+          setSongSearch('');
+          setSelectedSongs([]);
+        }
+        setEditor((current) =>
+          current?.kind === 'tag' &&
+          current.id !== undefined &&
+          !library.tags.some((tag) => tag.id === current.id)
+            ? undefined
+            : current,
+        );
         setLibrary(library);
         setSongs(songs);
         const songIds = new Set(songs.map((song) => song.id));

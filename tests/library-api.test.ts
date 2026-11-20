@@ -97,7 +97,10 @@ test('bulk edits persist once, validate every song, and preserve the library on 
   const deleted = new LibraryStore(JSON.parse(disk.value!));
   assert.equal(deleted.songs().length, 0);
   assert.equal(deleted.snapshot().assignments.length, 0);
-  assert.equal(deleted.tags().length, 2);
+  assert.deepEqual(
+    deleted.tags().map((tag) => tag.id),
+    [tagId],
+  );
 });
 
 test('library API serializes writes, persists a restart, and keeps saved data on failed writes', async () => {

@@ -171,10 +171,10 @@ test('artist-generated assignments coexist with manual ones and artist credits s
   assert.deepEqual(store.song(song).artists, ['Guest']);
   store.deleteSong(song);
   assert.equal(store.songs().length, 0);
-  assert.equal(store.tags().find((tag) => tag.id === daft)!.songCount, 0);
+  assert.ok(!store.tags().some((tag) => tag.id === daft));
 });
 
-test('artist tag identity survives legacy loading, renaming, emptying, and library transfer', () => {
+test('legacy artist tags survive renaming and transfer until their last song is deleted', () => {
   const store = new LibraryStore();
   const created = store.createTag({ name: 'Genre' });
   const reused = store.createTag({ name: 'Guest' });
@@ -193,7 +193,6 @@ test('artist tag identity survives legacy loading, renaming, emptying, and libra
   assert.equal(loaded.tags().find((tag) => tag.id === reused)!.artist, true);
   assert.equal(loaded.tags().find((tag) => tag.id === artist)!.artist, true);
   loaded.updateTag(artist, { pinned: true });
-  loaded.deleteSong(song);
   const transferred = new LibraryStore();
   transferred.createTag({ name: 'Renamed artist' });
   transferred.merge(loaded.exportLibrary());
@@ -206,7 +205,13 @@ test('artist tag identity survives legacy loading, renaming, emptying, and libra
       ['Renamed artist', true],
     ],
   );
-  assert.equal(restored.songs().length, 0);
+  assert.equal(restored.songs().length, 1);
+  loaded.editSongs({ songIds: [song], action: 'delete' });
+  assert.deepEqual(
+    loaded.tags().map((tag) => tag.name),
+    ['Genre'],
+  );
+  assert.deepEqual(loaded.snapshot().edges, []);
   assert.throws(
     () =>
       new LibraryStore({
@@ -214,5 +219,46 @@ test('artist tag identity survives legacy loading, renaming, emptying, and libra
         tags: [{ ...legacy.tags[0], artist: 'yes' }, ...legacy.tags.slice(1)],
       }),
     /artist tag state/,
+  );
+});
+
+test('artist tags keep inherited or excluded songs and are pruned once detached', () => {
+  const store = new LibraryStore();
+  const first = store.saveSong(songInput(1, ['Solo']));
+  const second = store.saveSong(songInput(2, ['Guest']));
+  const solo = store.tags().find((tag) => tag.name === 'Solo')!.id;
+  const guest = store.tags().find((tag) => tag.name === 'Guest')!.id;
+  store.relate(solo, guest, true);
+  store.editSongs({ songIds: [second], action: 'remove-tag', tagId: guest });
+  store.deleteSong(first);
+  assert.deepEqual(
+    store.tags().map((tag) => [tag.name, tag.songCount]),
+    [
+      ['Guest', 0],
+      ['Solo', 0],
+    ],
+  );
+  store.assign(second, guest, true);
+  assert.equal(store.songs(solo).length, 1);
+  store.relate(solo, guest, false);
+  assert.deepEqual(
+    store.tags().map((tag) => tag.name),
+    ['Guest'],
+  );
+
+  const snapshot = store.snapshot();
+  snapshot.tags.push({
+    id: snapshot.nextTagId++,
+    name: 'Old empty artist',
+    pinned: true,
+    artist: true,
+  });
+  assert.deepEqual(new LibraryStore(snapshot).tags(), store.tags());
+  store.saveSong(songInput(2, ['New artist']), second);
+  // The explicit assignment still keeps Guest alive after editing the credits.
+  store.assign(second, guest, false);
+  assert.deepEqual(
+    store.tags().map((tag) => tag.name),
+    ['New artist'],
   );
 });

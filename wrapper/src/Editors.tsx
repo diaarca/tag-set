@@ -454,7 +454,7 @@ export function SongEditor({
           <DeleteButton
             label={t('Delete song')}
             explanation={t(
-              'Remove this song and its assignments from your library? Tags and the original YouTube video will remain.',
+              'Remove this song and its assignments from your library? Empty artist tags will also be removed.',
             )}
             busy={busy}
             onDelete={() =>

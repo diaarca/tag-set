@@ -163,6 +163,7 @@ export class LibraryStore {
       nextTagId: next(input.nextTagId, tagIDs),
     };
     this.assertAcyclic();
+    this.pruneEmptyArtistTags();
   }
   snapshot(): LibraryData {
     return structuredClone(this.data);
@@ -229,7 +230,7 @@ export class LibraryStore {
     if (visited !== degree.size)
       throw new AppError(409, 'This relationship would create a tag cycle.');
   }
-  private members() {
+  private members(applyExclusions = true) {
     const members = new Map(
       this.data.tags.map((tag) => [tag.id, new Set<number>()]),
     );
@@ -238,6 +239,7 @@ export class LibraryStore {
     const excluded = new Map<number, Set<number>>();
     for (const row of this.data.assignments) {
       if (row.origin === 'excluded') {
+        if (!applyExclusions) continue;
         if (!excluded.has(row.tagId)) excluded.set(row.tagId, new Set());
         excluded.get(row.tagId)!.add(row.songId);
       } else members.get(row.tagId)!.add(row.songId);
@@ -375,13 +377,24 @@ export class LibraryStore {
   }
   deleteTag(tagId: number) {
     this.tag(tagId);
-    this.data.tags = this.data.tags.filter((tag) => tag.id !== tagId);
+    this.deleteTags(new Set([tagId]));
+    this.pruneEmptyArtistTags();
+  }
+  private deleteTags(ids: Set<number>) {
+    this.data.tags = this.data.tags.filter((tag) => !ids.has(tag.id));
     this.data.assignments = this.data.assignments.filter(
-      (row) => row.tagId !== tagId,
+      (row) => !ids.has(row.tagId),
     );
     this.data.edges = this.data.edges.filter(
-      (edge) => edge.parentId !== tagId && edge.childId !== tagId,
+      (edge) => !ids.has(edge.parentId) && !ids.has(edge.childId),
     );
+  }
+  private pruneEmptyArtistTags() {
+    const artists = this.data.tags.filter((tag) => tag.artist);
+    if (!artists.length) return;
+    const attached = this.members(false);
+    const empty = artists.filter((tag) => !attached.get(tag.id)!.size);
+    if (empty.length) this.deleteTags(new Set(empty.map((tag) => tag.id)));
   }
   saveSong(body: unknown, songId?: number) {
     const input = object(body),
@@ -414,15 +427,20 @@ export class LibraryStore {
           tagId: this.ensureTag(artist, true),
           origin: 'artist',
         });
+      if (previous) this.pruneEmptyArtistTags();
     }
     return result;
   }
   deleteSong(songId: number) {
     this.song(songId);
-    this.data.songs = this.data.songs.filter((song) => song.id !== songId);
+    this.deleteSongs(new Set([songId]));
+  }
+  private deleteSongs(songIds: Set<number>) {
+    this.data.songs = this.data.songs.filter((song) => !songIds.has(song.id));
     this.data.assignments = this.data.assignments.filter(
-      (row) => row.songId !== songId,
+      (row) => !songIds.has(row.songId),
     );
+    this.pruneEmptyArtistTags();
   }
   editSongs(value: unknown) {
     const input = object(value);
@@ -437,11 +455,7 @@ export class LibraryStore {
     if ([...songIds].some((id) => !existing.has(id)))
       throw new AppError(404, 'Song not found.');
     if (input.action === 'delete') {
-      this.data.songs = this.data.songs.filter((song) => !songIds.has(song.id));
-      this.data.assignments = this.data.assignments.filter(
-        (row) => !songIds.has(row.songId),
-      );
-      return;
+      return this.deleteSongs(songIds);
     }
     if (!['add-tag', 'remove-tag'].includes(String(input.action)))
       throw new AppError(400, 'Invalid bulk song action.');
@@ -459,6 +473,7 @@ export class LibraryStore {
         tagId,
         origin: input.action === 'add-tag' ? 'manual' : 'excluded',
       });
+    if (input.action === 'remove-tag') this.pruneEmptyArtistTags();
   }
   assign(songId: number, tagId: number, add: boolean) {
     this.song(songId);
@@ -470,6 +485,7 @@ export class LibraryStore {
         (row.origin !== 'manual' && !(add && row.origin === 'excluded')),
     );
     if (add) this.data.assignments.push({ songId, tagId, origin: 'manual' });
+    else this.pruneEmptyArtistTags();
   }
   relate(parentId: number, childId: number, add: boolean) {
     this.tag(parentId);
@@ -480,6 +496,7 @@ export class LibraryStore {
       (edge) => edge.parentId !== parentId || edge.childId !== childId,
     );
     if (add) this.data.edges.push({ parentId, childId });
+    else this.pruneEmptyArtistTags();
   }
   importPlaylist(playlist: CatalogPlaylist, tagName?: string) {
     if (!playlist.tracks.length)
@@ -541,6 +558,7 @@ export class LibraryStore {
     }
     for (const edge of incoming.edges)
       this.relate(tags.get(edge.parentId)!, tags.get(edge.childId)!, true);
+    this.pruneEmptyArtistTags();
     return {
       imported: incoming.songs.length - existing.size,
       existing: existing.size,
