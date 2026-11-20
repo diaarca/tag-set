@@ -7,7 +7,7 @@ import {
   Menu,
   safeStorage,
 } from 'electron';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFile, rm } from 'node:fs/promises';
@@ -28,9 +28,13 @@ const { allowedNavigation, validateCommand, artworkURL } =
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const uiURL = pathToFileURL(join(root, 'bundle/index.html')).href;
 const bridge = readFileSync(join(root, 'player-bridge.js'), 'utf8');
-// Keep storage paths and cookie-encryption keys through the rename.
-app.setName('Setwise Wrapper');
-const userData = join(app.getPath('appData'), 'Setwise Wrapper');
+app.setName('TagSet');
+const appData = app.getPath('appData');
+const legacyUserData = join(appData, 'Setwise Wrapper');
+const userData = join(appData, 'TagSet');
+// Preserve data and session storage from the previous app name.
+if (!existsSync(userData) && existsSync(legacyUserData))
+  renameSync(legacyUserData, userData);
 mkdirSync(userData, { recursive: true, mode: 0o700 });
 app.setPath('userData', userData);
 app.setPath('sessionData', userData);
@@ -180,6 +184,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      // Keep the partition identifier so existing YouTube Music sessions survive.
       partition: 'persist:setwise-youtube-music',
       backgroundThrottling: false,
     },

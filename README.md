@@ -80,7 +80,7 @@ Pull merges additions and preserves local edits; deletions do not propagate. Pus
 
 ## Data and limits
 
-Default libraries use `Setwise Wrapper/library.json` in Electron's application-data directory, or `SetwiseWrapper/library.json` in iOS Application Support. Settings can select another folder. Legacy storage/encryption identities and Apple bundle IDs are retained to preserve libraries and sign-in through the rename. Use **Export library** for backups and transfer. Offline music downloads are not implemented.
+Default libraries use `TagSet/library.json` in Electron's application-data directory (`~/Library/Application Support/TagSet` on macOS) and in iOS Application Support. Desktop moves the old `Setwise Wrapper` folder to `TagSet` on first launch if the new folder does not exist; if both exist, it leaves the old one untouched. Settings can select another folder. The visible app name is TagSet on desktop and iOS. Desktop bundle/encryption identities, Windows installer keys, the YouTube Music session partition, and the iOS Keychain service retain their legacy identifiers for compatibility. The iOS bundle ID now uses TagSet, so iOS installs it as a separate app; export a device-local library from the old app before switching, and save the GitHub token again if needed. Use **Export library** for backups and transfer. Offline music downloads are not implemented.
 
 On desktop, YouTube Music stays hidden behind the player. **Open YouTube Music** provides sign-in and playback prompts. Playback and catalog access require internet. Neither playback path guarantees audio-only network transfers.
 
