@@ -490,13 +490,39 @@ export class LibraryStore {
   relate(parentId: number, childId: number, add: boolean) {
     this.tag(parentId);
     this.tag(childId);
-    if (add && this.descendants(childId).has(parentId))
-      throw new AppError(409, 'This relationship would create a tag cycle.');
+    if (add) {
+      if (!this.addRelationship(parentId, childId)) return;
+      if (
+        !this.data.assignments.some(
+          (row) => row.tagId === parentId && row.origin === 'excluded',
+        )
+      )
+        return;
+      const inherited = this.members().get(childId)!;
+      this.data.assignments = this.data.assignments.filter(
+        (row) =>
+          row.tagId !== parentId ||
+          row.origin !== 'excluded' ||
+          !inherited.has(row.songId),
+      );
+      return;
+    }
     this.data.edges = this.data.edges.filter(
       (edge) => edge.parentId !== parentId || edge.childId !== childId,
     );
-    if (add) this.data.edges.push({ parentId, childId });
-    else this.pruneEmptyArtistTags();
+    this.pruneEmptyArtistTags();
+  }
+  private addRelationship(parentId: number, childId: number) {
+    if (
+      this.data.edges.some(
+        (edge) => edge.parentId === parentId && edge.childId === childId,
+      )
+    )
+      return false;
+    if (this.descendants(childId).has(parentId))
+      throw new AppError(409, 'This relationship would create a tag cycle.');
+    this.data.edges.push({ parentId, childId });
+    return true;
   }
   importPlaylist(playlist: CatalogPlaylist, tagName?: string) {
     if (!playlist.tracks.length)
@@ -557,7 +583,7 @@ export class LibraryStore {
         this.data.assignments.push({ songId, tagId, origin: row.origin });
     }
     for (const edge of incoming.edges)
-      this.relate(tags.get(edge.parentId)!, tags.get(edge.childId)!, true);
+      this.addRelationship(tags.get(edge.parentId)!, tags.get(edge.childId)!);
     this.pruneEmptyArtistTags();
     return {
       imported: incoming.songs.length - existing.size,

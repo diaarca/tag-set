@@ -106,6 +106,44 @@ test('nested and diamond-shaped inheritance deduplicates songs and preserves oth
   assert.equal(store.tags().find((tag) => tag.id === atmosphere)!.songCount, 0);
 });
 
+test('attaching an artist tag restores its previously removed songs to the playlist', () => {
+  const store = new LibraryStore();
+  const first = store.saveSong(songInput(1));
+  const second = store.saveSong(songInput(2, ['Other Artist']));
+  const artist = store.tags().find((tag) => tag.name === 'Daft Punk')!.id;
+  const other = store.tags().find((tag) => tag.name === 'Other Artist')!.id;
+  const parent = store.createTag({ name: 'Parent' });
+  store.assign(first, parent, true);
+  store.relate(parent, other, true);
+  store.editSongs({
+    songIds: [first, second],
+    action: 'remove-tag',
+    tagId: parent,
+  });
+
+  const reloaded = new LibraryStore(store.snapshot());
+  reloaded.relate(parent, artist, true);
+  reloaded.relate(parent, other, true);
+  assert.deepEqual(
+    reloaded.songs(parent).map((song) => song.id),
+    [first],
+  );
+  assert.deepEqual(
+    reloaded.details(first).memberships.find((row) => row.tagId === parent),
+    {
+      tagId: parent,
+      manual: false,
+      artist: false,
+      inheritedVia: [artist],
+    },
+  );
+
+  store.merge(reloaded.exportLibrary());
+  assert.equal(store.songs(parent).length, 0);
+  reloaded.relate(parent, artist, false);
+  assert.equal(reloaded.songs(parent).length, 0);
+});
+
 test('cycles are rejected atomically, including indirect and self links', () => {
   const store = new LibraryStore();
   const a = store.createTag({ name: 'A' });
