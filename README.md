@@ -1,10 +1,12 @@
 # TagSet
 
+<img src="wrapper/assets/icon.png" alt="TagSet app icon" width="96" height="96">
+
 A local music library with tags, inherited playlists, and YouTube Music playback. Electron runs the desktop app. iPhone/iPad use the same web interface with native AVPlayer audio and queue handling. No local server is required. [Source code](https://github.com/diaarca/tag-set).
 
 Songs inherit artist tags. Artist tags are removed when they have no direct or inherited songs, even if pinned. Parent tags include their descendants' songs, without duplicates or cycles. Tags support pins, renaming, and deletion. Search/import songs and playlists, play collections in order or shuffled, and transfer libraries through JSON import/export. Repeat-all is enabled by default; Space toggles playback while the app is focused. The player’s **Sleep timer** pauses playback after a chosen duration, including in the background on iOS. Change the duration to restart it or choose **Cancel timer**. Timers count elapsed time even while paused and reset when the app quits.
 
-Use the song checkboxes to select songs, then **Edit tags** to add or remove a tag in bulk. The header checkbox selects all visible search results; changing the search or collection clears selection. Delete/Backspace asks to remove the current tag, or permanently delete selected songs from **All songs**. Removing a tag excludes those songs even from inherited or artist membership, without changing artist credits. Exclusions also apply when propagating to parent tags; another membership path can still include the song. Add the tag again to restore membership if the tag is still present. Exclusions are saved in library exports and sharing; older app versions cannot read libraries containing them.
+Use the song checkboxes to select songs, then **Edit tags** to add or remove a tag in bulk. The header checkbox selects all visible search results; changing the search or collection clears selection. Delete/Backspace asks to remove the current tag, or permanently delete selected songs from **All songs**. Removing a tag excludes those songs even from inherited or artist membership, without changing artist credits. Exclusions also apply when propagating to parent tags; another membership path can still include the song. To restore a removed song, tag it directly or attach a child tag that includes it. Exclusions are saved in library exports and sharing; older app versions cannot read libraries containing them.
 
 On phones, a fixed bottom bar shows the song and playback controls. Tap its cover/title to open Now Playing; use **Back to library** or swipe down from the top of the panel to return. Desktop and iPad layouts keep the existing player panel. This also prepares the interface for Android phones; Android packaging is not yet available.
 
@@ -37,7 +39,7 @@ Packages are written to `dist/releases` and include their runtime. Windows/Linux
 
 ## Releases
 
-Published packages will be available on [GitHub Releases](https://github.com/diaarca/tag-set/releases): macOS Apple Silicon DMG, Windows x64 installer, Linux x64/ARM64 archives, and an unsigned iOS Xcode archive ZIP. The iOS archive is not directly installable; use the source and Xcode instructions below to sign and install. Each release includes `SHA256SUMS.txt` for verifying downloads. Android and Intel Mac packages are not available.
+Published packages are available on [GitHub Releases](https://github.com/diaarca/tag-set/releases): macOS Apple Silicon DMG, Windows x64 installer, Linux x64/ARM64 archives, and an unsigned iOS Xcode archive ZIP. The iOS archive is not directly installable; use the source and Xcode instructions below to sign and install. Each release includes `SHA256SUMS.txt` for verifying downloads. Android and Intel Mac packages are not available.
 
 To prepare a release, merge the desired changes and set `package.json` and its lockfile to the release version. Tag that commit as `vVERSION` and push the tag, then open **Actions → Release → Run workflow** on `main` and enter the existing tag. The tag must match the package version, for example `v0.1.0`. The workflow checks source, builds all five packages, and creates a **draft** only after both build jobs succeed. Review its notes and packages before publishing manually. An existing release is never overwritten; if a failed upload leaves a partial draft, delete that draft before retrying. Release builds do not run on ordinary pushes or pull requests.
 
