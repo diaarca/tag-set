@@ -1267,12 +1267,20 @@ textarea {
 .phone-layout .sidebar {
   position: static;
   height: auto;
-  padding: 18px 16px 12px;
+  padding: 12px 16px;
   border-right: 0;
   border-bottom: 1px solid var(--line);
 }
-.phone-layout .brand {
-  margin: 0 0 20px;
+.compact-brand {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 8px 16px;
+  background: #15152b;
+}
+.compact-brand .brand {
+  width: fit-content;
+  margin: 0;
   font-size: 26px;
 }
 .phone-layout .library-heading,
@@ -1291,8 +1299,8 @@ textarea {
   padding: 7px 10px;
   font-size: 12px;
 }
-.phone-layout:has(.phone-player-open) .sidebar,
-.phone-layout:has(.phone-player-open) .main-panel {
+.phone-layout:has(.phone-player-open)
+  > :is(.compact-brand, .sidebar, .main-panel) {
   visibility: hidden;
 }
 .phone-layout .player-panel {
