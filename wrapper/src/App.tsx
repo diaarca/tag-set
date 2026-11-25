@@ -625,6 +625,7 @@ export function App() {
           {editor.kind === 'song' && editor.id === undefined ? (
             <ImportSongs
               library={library}
+              onAdded={refresh}
               onImported={(id) => {
                 refresh();
                 setEditor({ kind: 'song', id });
