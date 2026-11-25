@@ -7,6 +7,7 @@ import type {
   PlaylistImportResult,
 } from '../../shared/types.js';
 import { api } from './api';
+import { TrackCover } from './CoverImage';
 import { AppError } from '../../shared/errors.js';
 
 export function ImportSongs({
@@ -156,9 +157,12 @@ export function ImportSongs({
           >
             {availableResults.map((track) => (
               <li key={track.videoId}>
-                <div>
-                  <strong>{track.title}</strong>
-                  <span>{track.artists.join(' · ')}</span>
+                <div className="track-info">
+                  <TrackCover videoId={track.videoId} />
+                  <div className="track-details">
+                    <strong>{track.title}</strong>
+                    <span>{track.artists.join(' · ')}</span>
+                  </div>
                 </div>
                 <button
                   disabled={busy}

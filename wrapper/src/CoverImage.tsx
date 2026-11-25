@@ -1,9 +1,13 @@
 import { useState } from 'react';
 
+export const songThumbnailURL = (videoId: string) =>
+  `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
 export function CoverImage(props: {
   src: string;
   alt: string;
   onError: () => void;
+  loading?: 'lazy';
 }) {
   const [padded, setPadded] = useState(false);
   return (
@@ -23,5 +27,24 @@ export function CoverImage(props: {
         );
       }}
     />
+  );
+}
+
+export function TrackCover({ videoId }: { videoId: string }) {
+  const [failedVideoId, setFailedVideoId] = useState<string>();
+  return (
+    <span className="track-cover" aria-hidden="true">
+      {failedVideoId === videoId ? (
+        '♫'
+      ) : (
+        <CoverImage
+          key={videoId}
+          src={songThumbnailURL(videoId)}
+          alt=""
+          loading="lazy"
+          onError={() => setFailedVideoId(videoId)}
+        />
+      )}
+    </span>
   );
 }

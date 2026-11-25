@@ -24,7 +24,7 @@ import {
 } from './host.js';
 import '../protocol.js';
 import { SleepTimer } from './SleepTimer';
-import { CoverImage } from './CoverImage';
+import { CoverImage, songThumbnailURL } from './CoverImage';
 import { usePreferences, useTranslation } from './Preferences';
 
 export interface PlayerHandle {
@@ -432,9 +432,7 @@ export const Player = forwardRef<
     return () => window.removeEventListener('keydown', handleKey);
   }, [song, togglePlayback]);
   const cover = artwork && artwork.videoId === videoId ? artwork.url : null;
-  const thumbnail = videoId
-    ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-    : null;
+  const thumbnail = videoId ? songThumbnailURL(videoId) : null;
   const image =
     cover && cover !== failedArtwork
       ? cover
