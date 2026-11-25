@@ -120,25 +120,31 @@ app.whenReady().then(async () => {
       }
       if (operation === 'catalog') {
         assert.equal(payload.endpoint, 'search');
-        assert.equal(payload.body.query, 'Catalog');
-        return Array.from({ length: 16 }, (_, index) => ({
-          musicResponsiveListItemRenderer: {
-            playlistItemData: { videoId: String(index + 10).padStart(11, '0') },
-            flexColumns: [
-              [{ text: `Catalog song ${index + 1}` }],
-              [
-                {
-                  text: 'Catalog artist',
-                  navigationEndpoint: {
-                    browseEndpoint: { browseId: 'UCcatalog' },
+        const { query } = payload.body;
+        assert.ok(['Catalog', 'Saved only'].includes(query));
+        return Array.from(
+          { length: query === 'Catalog' ? 16 : 2 },
+          (_, index) => ({
+            musicResponsiveListItemRenderer: {
+              playlistItemData: {
+                videoId: String(index + 10).padStart(11, '0'),
+              },
+              flexColumns: [
+                [{ text: `Catalog song ${index + 1}` }],
+                [
+                  {
+                    text: 'Catalog artist',
+                    navigationEndpoint: {
+                      browseEndpoint: { browseId: 'UCcatalog' },
+                    },
                   },
-                },
-              ],
-            ].map((runs) => ({
-              musicResponsiveListItemFlexColumnRenderer: { text: { runs } },
-            })),
-          },
-        }));
+                ],
+              ].map((runs) => ({
+                musicResponsiveListItemFlexColumnRenderer: { text: { runs } },
+              })),
+            },
+          }),
+        );
       }
       if (operation === 'readLibrary') return saved;
       if (operation === 'writeLibrary') {
@@ -1212,12 +1218,15 @@ app.whenReady().then(async () => {
     );
     await evaluate("document.querySelector('.add-song').click()");
     await waitFor("!!document.querySelector('dialog input')");
-    await evaluate(`(() => {
-      const input = document.querySelector('dialog input');
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Catalog');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    })()`);
-    await evaluate("document.querySelector('dialog form').requestSubmit()");
+    const searchCatalog = async (query) => {
+      await evaluate(`(() => {
+        const input = document.querySelector('dialog input');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(query)});
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await evaluate("document.querySelector('dialog form').requestSubmit()");
+    };
+    await searchCatalog('Catalog');
     await waitFor(
       "document.querySelectorAll('.catalog-results li').length === 16",
     );
@@ -1226,7 +1235,7 @@ app.whenReady().then(async () => {
         `document.querySelector('[aria-label="Import Catalog song ${number}"]').click()`,
       );
       await waitFor(
-        `!!document.querySelector('dialog[open] [aria-label="Open Catalog song ${number}"]')`,
+        `document.querySelector('dialog[open] .catalog-results')?.children.length === ${16 - number}`,
       );
       assert.equal(
         await evaluate("document.querySelector('dialog input').value"),
@@ -1250,6 +1259,19 @@ app.whenReady().then(async () => {
     assert.deepEqual(
       JSON.parse(saved).songs.map((song) => song.title),
       ['Catalog song 1', 'Catalog song 2'],
+    );
+    await evaluate("document.querySelector('.add-song').click()");
+    await searchCatalog('Catalog');
+    await waitFor(
+      "document.querySelectorAll('.catalog-results li').length === 14",
+    );
+    await searchCatalog('Saved only');
+    await waitFor(
+      "document.querySelector('dialog [role=status]')?.textContent === 'All matching songs are already in your library.'",
+    );
+    assert.equal(
+      await evaluate("document.querySelectorAll('.catalog-results li').length"),
+      0,
     );
     window.webContents.debugger.detach();
     window.destroy();

@@ -123,6 +123,8 @@ export const french: Record<string, string> = {
   'Added directly': 'Ajouté directement',
   'Advertisement · playback is handled by YouTube Music.':
     'Publicité · lecture gérée par YouTube Music.',
+  'All matching songs are already in your library.':
+    'Tous les morceaux trouvés sont déjà dans votre bibliothèque.',
   'All songs': 'Tous les morceaux',
   'Artist tag': 'Tag d’artiste',
   Artists: 'Artistes',
@@ -173,7 +175,6 @@ export const french: Record<string, string> = {
   'Import song': 'Importer le morceau',
   'Importing playlist…': 'Importation de la playlist…',
   'Importing…': 'Importation…',
-  'In library ↗': 'Dans la bibliothèque ↗',
   'Keep it': 'Conserver',
   'Less sorting. More listening.': 'Moins de tri. Plus de musique.',
   Library: 'Bibliothèque',
@@ -195,7 +196,6 @@ export const french: Record<string, string> = {
   'No songs found. Try another title or artist.':
     'Aucun morceau trouvé. Essayez un autre titre ou artiste.',
   'Nothing here by that name.': 'Aucun résultat pour ce nom.',
-  Open: 'Ouvrir',
   'Open YouTube Music': 'Ouvrir YouTube Music',
   'Opening your collection…': 'Chargement de votre collection…',
   'Opening your song in YouTube Music… Use “Open YouTube Music” if it needs consent or a playback prompt.':

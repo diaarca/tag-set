@@ -31,6 +31,10 @@ export function ImportSongs({
   const [searched, setSearched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const libraryVideoIds = new Set(library.songs.map((song) => song.videoId));
+  const availableResults = results.filter(
+    (track) => !libraryVideoIds.has(track.videoId),
+  );
 
   const run = async (action: () => Promise<void>, onDuplicate = onImported) => {
     setBusy(true);
@@ -139,41 +143,32 @@ export function ImportSongs({
               </button>
             </fieldset>
           </form>
-          {searched && results.length === 0 && (
+          {searched && availableResults.length === 0 && (
             <p className="notice" role="status">
-              {t('No songs found. Try another title or artist.')}
+              {results.length
+                ? t('All matching songs are already in your library.')
+                : t('No songs found. Try another title or artist.')}
             </p>
           )}
           <ul
             className="catalog-results"
             aria-label={t('YouTube Music search results')}
           >
-            {results.map((track) => {
-              const existing = library.songs.find(
-                (song) => song.videoId === track.videoId,
-              );
-              return (
-                <li key={track.videoId}>
-                  <div>
-                    <strong>{track.title}</strong>
-                    <span>{track.artists.join(' · ')}</span>
-                  </div>
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      existing ? onImported(existing.id) : importResult(track)
-                    }
-                    aria-label={t(
-                      '{0} {1}',
-                      existing ? t('Open') : t('Import'),
-                      track.title,
-                    )}
-                  >
-                    {existing ? t('In library ↗') : t('+ Add')}
-                  </button>
-                </li>
-              );
-            })}
+            {availableResults.map((track) => (
+              <li key={track.videoId}>
+                <div>
+                  <strong>{track.title}</strong>
+                  <span>{track.artists.join(' · ')}</span>
+                </div>
+                <button
+                  disabled={busy}
+                  onClick={() => importResult(track)}
+                  aria-label={t('{0} {1}', t('Import'), track.title)}
+                >
+                  {t('+ Add')}
+                </button>
+              </li>
+            ))}
           </ul>
         </>
       ) : mode === 'playlist' ? (
