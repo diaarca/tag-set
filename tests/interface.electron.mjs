@@ -118,6 +118,28 @@ app.whenReady().then(async () => {
         preferences = payload;
         return null;
       }
+      if (operation === 'catalog') {
+        assert.equal(payload.endpoint, 'search');
+        assert.equal(payload.body.query, 'Catalog');
+        return Array.from({ length: 16 }, (_, index) => ({
+          musicResponsiveListItemRenderer: {
+            playlistItemData: { videoId: String(index + 10).padStart(11, '0') },
+            flexColumns: [
+              [{ text: `Catalog song ${index + 1}` }],
+              [
+                {
+                  text: 'Catalog artist',
+                  navigationEndpoint: {
+                    browseEndpoint: { browseId: 'UCcatalog' },
+                  },
+                },
+              ],
+            ].map((runs) => ({
+              musicResponsiveListItemFlexColumnRenderer: { text: { runs } },
+            })),
+          },
+        }));
+      }
       if (operation === 'readLibrary') return saved;
       if (operation === 'writeLibrary') {
         assert.equal(payload.previous, saved);
@@ -1188,11 +1210,52 @@ app.whenReady().then(async () => {
       await evaluate("document.querySelectorAll('.song-row').length"),
       0,
     );
+    await evaluate("document.querySelector('.add-song').click()");
+    await waitFor("!!document.querySelector('dialog input')");
+    await evaluate(`(() => {
+      const input = document.querySelector('dialog input');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'Catalog');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await evaluate("document.querySelector('dialog form').requestSubmit()");
+    await waitFor(
+      "document.querySelectorAll('.catalog-results li').length === 16",
+    );
+    for (const number of [1, 2]) {
+      await evaluate(
+        `document.querySelector('[aria-label="Import Catalog song ${number}"]').click()`,
+      );
+      await waitFor(
+        `!!document.querySelector('dialog[open] [aria-label="Open Catalog song ${number}"]')`,
+      );
+      assert.equal(
+        await evaluate("document.querySelector('dialog input').value"),
+        'Catalog',
+      );
+    }
+    await evaluate("document.querySelector('dialog').scrollTop = 2000");
+    assert.ok(
+      await evaluate(`(() => {
+        const dialog = document.querySelector('dialog');
+        const close = dialog.querySelector('[aria-label="Close dialog"]');
+        return dialog.scrollTop > 0 && close.getBoundingClientRect().top >= dialog.getBoundingClientRect().top;
+      })()`),
+    );
+    await evaluate(
+      `document.querySelector('[aria-label="Close dialog"]').click()`,
+    );
+    await waitFor(
+      "!document.querySelector('dialog') && document.querySelectorAll('.song-row').length === 2",
+    );
+    assert.deepEqual(
+      JSON.parse(saved).songs.map((song) => song.title),
+      ['Catalog song 1', 'Catalog song 2'],
+    );
     window.webContents.debugger.detach();
     window.destroy();
     clearTimeout(timeout);
     console.log(
-      'Passed: bulk selection/tag edits/exclusions/deletion/queue cleanup, searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, library reset confirmation/cancellation/persistence, phone player controls/swipes/orientation, native queue synchronization, and responsive layout.',
+      'Passed: bulk selection/tag edits/exclusions/deletion/queue cleanup, searchable tag assignment/creation, cycle rejection, tag grouping/search/pinning, persistence, export, shuffle/repeat, slider keyboard controls, settings persistence, GitHub sharing conflicts, French translation, artist visibility, library folder confirmation/cancellation/reload, library reset confirmation/cancellation/persistence, phone player controls/swipes/orientation, native queue synchronization, responsive layout, and repeated song imports from search.',
     );
     app.quit();
   } catch (error) {

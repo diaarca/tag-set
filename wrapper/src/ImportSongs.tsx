@@ -11,11 +11,13 @@ import { AppError } from '../../shared/errors.js';
 
 export function ImportSongs({
   library,
+  onAdded,
   onImported,
   onManual,
   onPlaylistImported,
 }: {
   library: Library;
+  onAdded(): void;
   onImported(id: number): void;
   onManual(): void;
   onPlaylistImported(result: PlaylistImportResult): void;
@@ -30,13 +32,13 @@ export function ImportSongs({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const run = async (action: () => Promise<void>) => {
+  const run = async (action: () => Promise<void>, onDuplicate = onImported) => {
     setBusy(true);
     setError('');
     try {
       await action();
     } catch (error) {
-      if (error instanceof AppError && error.songId) onImported(error.songId);
+      if (error instanceof AppError && error.songId) onDuplicate(error.songId);
       else
         setError(
           error instanceof Error
@@ -61,13 +63,13 @@ export function ImportSongs({
   };
   const importResult = (track: CatalogSong) =>
     void run(async () => {
-      const song = await api<SongDetails>('/songs', 'POST', {
+      await api('/songs', 'POST', {
         url: `https://music.youtube.com/watch?v=${track.videoId}`,
         title: track.title,
         artists: track.artists,
       });
-      onImported(song.id);
-    });
+      onAdded();
+    }, onAdded);
   return (
     <>
       <p className="form-intro">

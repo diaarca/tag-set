@@ -742,11 +742,12 @@ input[type='range'] {
   text-align: center;
 }
 .modal {
+  --modal-padding: 25px;
   border: 1px solid #5d4c73;
   background: #211c36;
   color: #ece5f6;
   border-radius: 12px;
-  padding: 25px;
+  padding: var(--modal-padding);
   width: min(560px, calc(100% - 28px));
   max-height: calc(100dvh - 40px);
   box-shadow: 0 30px 100px #0006;
@@ -766,6 +767,14 @@ input[type='range'] {
   margin: 0;
   font-size: 22px;
   letter-spacing: -0.6px;
+}
+.modal:has(.import-modes) .modal-header {
+  position: sticky;
+  top: calc(-1 * var(--modal-padding));
+  z-index: 1;
+  margin-top: calc(-1 * var(--modal-padding));
+  padding-top: var(--modal-padding);
+  background: #211c36;
 }
 .form-intro {
   color: #bdaed2;
@@ -1152,7 +1161,7 @@ textarea {
     font-size: 18px;
   }
   .modal {
-    padding: 20px;
+    --modal-padding: 20px;
   }
 }
 .app-shell:has(.wrapper-site-open) {
