@@ -927,7 +927,7 @@ app.whenReady().then(async () => {
     const desktopAgent = window.webContents.getUserAgent();
     window.setSize(900, 1100);
     await waitFor(
-      "!!document.querySelector('.phone-mini-player') && document.querySelector('.player-panel').inert",
+      "!!document.querySelector('.compact-brand .brand') && !!document.querySelector('.phone-mini-player') && document.querySelector('.player-panel').inert",
     );
     await evaluate(
       "document.querySelector('.primary.play-collection').click()",
@@ -939,7 +939,7 @@ app.whenReady().then(async () => {
     await waitFor(
       "getComputedStyle(document.querySelector('.main-panel')).visibility === 'hidden' && document.documentElement.style.overflow === 'hidden'",
     );
-    window.setSize(1420, 900);
+    window.setSize(1000, 600);
     await waitFor(
       "!document.querySelector('.phone-mini-player') && !document.querySelector('.player-panel').inert && document.documentElement.style.overflow !== 'hidden'",
     );
@@ -947,6 +947,10 @@ app.whenReady().then(async () => {
       await evaluate("document.querySelector('.now-playing h2').textContent"),
       'Song 1',
     );
+    await evaluate('window.scrollTo(0, 100)');
+    assert.ok(await evaluate('window.scrollY > 0'));
+    await evaluate("document.querySelector('.sidebar .brand').click()");
+    await waitFor('window.scrollY === 0');
     window.setSize(900, 1100);
     await waitFor("!!document.querySelector('.phone-player-open')");
     await press('Escape');
@@ -1013,11 +1017,20 @@ app.whenReady().then(async () => {
       await waitFor(
         "document.querySelector('.mini-player-cover img')?.style.transform.startsWith('scale(1.33333')",
       );
+      window.setSize(390, 640);
+      await waitFor('innerHeight <= 640');
       await evaluate('window.scrollTo(0, 100)');
       const libraryScroll = await evaluate('window.scrollY');
+      assert.ok(libraryScroll > 0);
+      assert.equal(
+        await evaluate(
+          "document.querySelector('.compact-brand').getBoundingClientRect().top",
+        ),
+        0,
+      );
       await evaluate("document.querySelector('.mini-player-open').click()");
       await waitFor(
-        "document.querySelector('.player-panel').classList.contains('phone-player-open') && getComputedStyle(document.querySelector('.main-panel')).visibility === 'hidden'",
+        "document.querySelector('.player-panel').classList.contains('phone-player-open') && getComputedStyle(document.querySelector('.main-panel')).visibility === 'hidden' && getComputedStyle(document.querySelector('.compact-brand')).visibility === 'hidden'",
       );
       assert.equal(
         await evaluate(
@@ -1060,6 +1073,10 @@ app.whenReady().then(async () => {
         await evaluate('document.activeElement.className'),
         'mini-player-open',
       );
+      await evaluate("document.querySelector('.compact-brand .brand').click()");
+      await waitFor('window.scrollY === 0');
+      window.setSize(390, 844);
+      await waitFor('innerHeight > 640');
       await evaluate("document.querySelector('.mini-player-open').click()");
       const swipeOn = async (selector, dx, dy, scrolling = false) => {
         await evaluate(`(() => {

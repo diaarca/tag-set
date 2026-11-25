@@ -188,22 +188,28 @@ export function App() {
       </button>
     ));
 
+  const brand = (
+    <a
+      className="brand"
+      href="/"
+      aria-label={t('TagSet home')}
+      onClick={(event) => {
+        event.preventDefault();
+        chooseTag(null);
+        window.scrollTo(0, 0);
+      }}
+    >
+      <img className="brand-mark" src="icon.png" alt="" />
+      {t('TagSet')}
+      <span className="brand-period">.</span>
+    </a>
+  );
+
   return (
     <div className={`app-shell${compactLayout ? ' phone-layout' : ''}`}>
+      {compactLayout && <header className="compact-brand">{brand}</header>}
       <aside className="sidebar" aria-label={t('Library navigation')}>
-        <a
-          className="brand"
-          href="/"
-          aria-label={t('TagSet home')}
-          onClick={(event) => {
-            event.preventDefault();
-            chooseTag(null);
-          }}
-        >
-          <img className="brand-mark" src="icon.png" alt="" />
-          {t('TagSet')}
-          <span className="brand-period">.</span>
-        </a>
+        {!compactLayout && brand}
         <div className="library-heading">
           <span className="eyebrow">{t('YOUR LIBRARY')}</span>
           <button
