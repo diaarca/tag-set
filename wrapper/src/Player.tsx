@@ -15,7 +15,6 @@ import {
   type QueueState,
 } from './queue.js';
 import {
-  isPhone,
   nativeAudio,
   send,
   subscribe,
@@ -59,8 +58,8 @@ function playerReducer(
 
 export const Player = forwardRef<
   PlayerHandle,
-  { onManageSong?: (id: number) => void }
->(function Player({ onManageSong }, ref) {
+  { compactLayout: boolean; onManageSong?: (id: number) => void }
+>(function Player({ compactLayout, onManageSong }, ref) {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
   useEffect(() => {
@@ -118,7 +117,7 @@ export const Player = forwardRef<
     () => ({
       start(songs, options) {
         dispatch({ type: 'start', songs, shuffle: options?.shuffle });
-        if (!isPhone)
+        if (!compactLayout)
           panel.current?.scrollIntoView({
             block: 'nearest',
             behavior: 'smooth',
@@ -128,14 +127,14 @@ export const Player = forwardRef<
         dispatch({ type: 'remove', id });
       },
     }),
-    [dispatch],
+    [compactLayout, dispatch],
   );
   const closePhonePlayer = useCallback(() => {
     setPhoneExpanded(false);
     setWebsiteOpen(false);
   }, []);
   useEffect(() => {
-    if (!isPhone) return;
+    if (!compactLayout) return;
     if (!phoneExpanded) {
       if (openedOnPhone.current)
         miniOpen.current?.focus({ preventScroll: true });
@@ -148,7 +147,7 @@ export const Player = forwardRef<
     return () => {
       document.documentElement.style.overflow = overflow;
     };
-  }, [phoneExpanded]);
+  }, [compactLayout, phoneExpanded]);
   useEffect(
     () =>
       subscribe((message) => {
@@ -315,7 +314,9 @@ export const Player = forwardRef<
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const rect = element.getBoundingClientRect();
-        const bounds = isPhone ? panel.current!.getBoundingClientRect() : null;
+        const bounds = compactLayout
+          ? panel.current!.getBoundingClientRect()
+          : null;
         const x = bounds ? Math.max(rect.left, bounds.left, 0) : rect.x;
         const y = bounds ? Math.max(rect.top, bounds.top, 0) : rect.y;
         const width = bounds
@@ -326,7 +327,7 @@ export const Player = forwardRef<
           : rect.height;
         const visible =
           websiteOpen &&
-          (!isPhone || phoneExpanded) &&
+          (!compactLayout || phoneExpanded) &&
           width > 0 &&
           height > 0 &&
           !document.querySelector('dialog[open]') &&
@@ -376,7 +377,7 @@ export const Player = forwardRef<
         height: 0,
       });
     };
-  }, [websiteOpen, phoneExpanded]);
+  }, [compactLayout, phoneExpanded, websiteOpen]);
   const matching =
     (nativeAudio || playback.loadToken === active.current?.token) &&
     playback.videoId === song?.videoId;
@@ -444,14 +445,14 @@ export const Player = forwardRef<
       <aside
         ref={panel}
         id="now-playing-panel"
-        className={`player-panel${websiteOpen ? ' wrapper-site-open' : ''}${phoneExpanded ? ' phone-player-open' : ''}`}
+        className={`player-panel${websiteOpen ? ' wrapper-site-open' : ''}${compactLayout && phoneExpanded ? ' phone-player-open' : ''}`}
         aria-label={t('Music player')}
-        role={isPhone ? 'region' : undefined}
-        aria-hidden={isPhone && !phoneExpanded ? true : undefined}
-        inert={isPhone && !phoneExpanded}
+        role={compactLayout ? 'region' : undefined}
+        aria-hidden={compactLayout && !phoneExpanded ? true : undefined}
+        inert={compactLayout && !phoneExpanded}
         onKeyDown={(event) => {
           if (
-            isPhone &&
+            compactLayout &&
             phoneExpanded &&
             event.key === 'Escape' &&
             !event.defaultPrevented
@@ -463,7 +464,7 @@ export const Player = forwardRef<
         onTouchStart={(event) => {
           swipe.current = undefined;
           if (
-            !isPhone ||
+            !compactLayout ||
             !phoneExpanded ||
             event.touches.length !== 1 ||
             panel.current!.scrollTop > 0 ||
@@ -494,7 +495,7 @@ export const Player = forwardRef<
           swipe.current = undefined;
         }}
       >
-        {isPhone && (
+        {compactLayout && (
           <div className="phone-player-header">
             <button
               ref={phoneBack}
@@ -693,7 +694,7 @@ export const Player = forwardRef<
           {t('Library saved on this device · Playback by YouTube Music')}
         </p>
       </aside>
-      {isPhone && (
+      {compactLayout && (
         <nav
           className="phone-mini-player"
           aria-label={t('Compact music player')}
