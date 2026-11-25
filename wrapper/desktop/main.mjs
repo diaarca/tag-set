@@ -219,6 +219,7 @@ function createWindow() {
         report({ error: `YouTube Music could not load: ${description}` });
     },
   );
+  window.maximize();
   void window.loadURL(uiURL);
   openMusic('https://music.youtube.com/');
   window.on('closed', () => {
