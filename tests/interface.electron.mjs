@@ -925,6 +925,34 @@ app.whenReady().then(async () => {
         );
     }
     const desktopAgent = window.webContents.getUserAgent();
+    window.setSize(900, 1100);
+    await waitFor(
+      "!!document.querySelector('.phone-mini-player') && document.querySelector('.player-panel').inert",
+    );
+    await evaluate(
+      "document.querySelector('.primary.play-collection').click()",
+    );
+    await waitFor(
+      "document.querySelector('.mini-player-details strong')?.textContent === 'Song 1' && !!document.querySelector('.phone-mini-player [aria-label=Pause]')",
+    );
+    await evaluate("document.querySelector('.mini-player-open').click()");
+    await waitFor(
+      "getComputedStyle(document.querySelector('.main-panel')).visibility === 'hidden' && document.documentElement.style.overflow === 'hidden'",
+    );
+    window.setSize(1420, 900);
+    await waitFor(
+      "!document.querySelector('.phone-mini-player') && !document.querySelector('.player-panel').inert && document.documentElement.style.overflow !== 'hidden'",
+    );
+    assert.equal(
+      await evaluate("document.querySelector('.now-playing h2').textContent"),
+      'Song 1',
+    );
+    window.setSize(900, 1100);
+    await waitFor("!!document.querySelector('.phone-player-open')");
+    await press('Escape');
+    await waitFor(
+      "document.querySelector('.player-panel').inert && document.activeElement.className === 'mini-player-open'",
+    );
     for (const agent of [
       'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
       'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36',

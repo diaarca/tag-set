@@ -1,5 +1,11 @@
 import { usePreferences, useTranslation } from './Preferences';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { Library, Song, Tag } from '../../shared/types.js';
 import { api, exportLibrary } from './api';
 import { Player, type PlayerHandle } from './Player';
@@ -13,10 +19,20 @@ import { isPhone } from './host';
 
 type Editor = { kind: 'song' | 'tag' | 'manual'; id?: number };
 const emptyLibrary: Library = { songs: [], tags: [], edges: [] };
+const portrait = window.matchMedia('(orientation: portrait)');
+const subscribeToOrientation = (listener: () => void) => {
+  portrait.addEventListener('change', listener);
+  return () => portrait.removeEventListener('change', listener);
+};
+const usesCompactLayout = () => isPhone || portrait.matches;
 
 export function App() {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
+  const compactLayout = useSyncExternalStore(
+    subscribeToOrientation,
+    usesCompactLayout,
+  );
   const [library, setLibrary] = useState<Library>(emptyLibrary);
   const [songs, setSongs] = useState<Song[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -173,7 +189,7 @@ export function App() {
     ));
 
   return (
-    <div className={`app-shell${isPhone ? ' phone-layout' : ''}`}>
+    <div className={`app-shell${compactLayout ? ' phone-layout' : ''}`}>
       <aside className="sidebar" aria-label={t('Library navigation')}>
         <a
           className="brand"
@@ -597,6 +613,7 @@ export function App() {
 
       <Player
         ref={player}
+        compactLayout={compactLayout}
         onManageSong={(id) => setEditor({ kind: 'song', id })}
       />
       {settingsOpen && (
