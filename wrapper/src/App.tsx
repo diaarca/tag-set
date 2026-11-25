@@ -6,6 +6,7 @@ import { Player, type PlayerHandle } from './Player';
 import { Modal } from './Modal';
 import { SongEditor, TagEditor } from './Editors';
 import { ImportSongs } from './ImportSongs';
+import { TrackCover } from './CoverImage';
 import { Settings } from './Settings';
 import { SongSelection } from './SongSelection';
 import { isPhone } from './host';
@@ -521,16 +522,19 @@ export function App() {
                     <span className="row-play-icon">▶</span>
                   </button>
                 </div>
-                <div role="cell" className="song-title-cell">
-                  <button
-                    className="song-name"
-                    onClick={() => setEditor({ kind: 'song', id: song.id })}
-                  >
-                    {song.title}
-                  </button>
-                  <span className="song-artists">
-                    {song.artists.join(' · ')}
-                  </span>
+                <div role="cell" className="song-title-cell track-info">
+                  <TrackCover videoId={song.videoId} />
+                  <div className="track-details">
+                    <button
+                      className="song-name"
+                      onClick={() => setEditor({ kind: 'song', id: song.id })}
+                    >
+                      {song.title}
+                    </button>
+                    <span className="song-artists">
+                      {song.artists.join(' · ')}
+                    </span>
+                  </div>
                 </div>
                 <span role="cell" className="source-label">
                   <i />

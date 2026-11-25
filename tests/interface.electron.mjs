@@ -160,7 +160,10 @@ app.whenReady().then(async () => {
     });
     await window.webContents.session.protocol.handle('https', (request) => {
       const url = new URL(request.url);
-      if (url.pathname === '/missing')
+      if (
+        url.pathname === '/missing' ||
+        url.pathname === '/vi/00000000012/hqdefault.jpg'
+      )
         return new Response(null, { status: 404 });
       const padded = url.hostname === 'i.ytimg.com';
       return new Response(
@@ -1230,6 +1233,9 @@ app.whenReady().then(async () => {
     await waitFor(
       "document.querySelectorAll('.catalog-results li').length === 16",
     );
+    await waitFor(
+      "document.querySelector('.catalog-results li:first-child .track-cover img')?.naturalWidth > 0 && document.querySelector('.catalog-results li:nth-child(3) .track-cover')?.textContent === '♫'",
+    );
     for (const number of [1, 2]) {
       await evaluate(
         `document.querySelector('[aria-label="Import Catalog song ${number}"]').click()`,
@@ -1255,6 +1261,9 @@ app.whenReady().then(async () => {
     );
     await waitFor(
       "!document.querySelector('dialog') && document.querySelectorAll('.song-row').length === 2",
+    );
+    await waitFor(
+      'document.querySelector(\'.song-row .track-cover img[src$="/00000000010/hqdefault.jpg"]\')?.naturalWidth > 0',
     );
     assert.deepEqual(
       JSON.parse(saved).songs.map((song) => song.title),
